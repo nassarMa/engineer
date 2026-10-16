@@ -4,4 +4,4 @@ One knowledge file per repo, written by the `onboard-repo` skill.
 
 | Repo | Notes | Purpose |
 |------|-------|---------|
-| _none yet_ | | |
+| Panniantong/agent-reach | [notes](panniantong-agent-reach.md) | Internet access router for agents (studied, not integrated) |
