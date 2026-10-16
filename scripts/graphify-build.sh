@@ -39,6 +39,9 @@ if [ -f "$TARGET/graphify-out/graph.json" ]; then
 else
   graphify extract "$TARGET" "${MODE[@]}" "$@"
 fi
+# extract/update write graph.json; the report and community names come from
+# a separate clustering pass (no LLM).
+graphify cluster-only "$TARGET"
 
 echo
 echo "Graph: $TARGET/graphify-out/graph.json"

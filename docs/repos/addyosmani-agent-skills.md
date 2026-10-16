@@ -6,7 +6,7 @@
 - **Language / framework:** Markdown (SKILL.md files) plus Node validation
   scripts. Claude Code plugin (also Codex, Gemini CLI, Cursor adapters). MIT.
 - **Default branch:** main (studied at `aeac41d`, v0.6.13, 2026-10-13)
-- **Last onboarded:** 2026-10-16 (static read; nothing executed)
+- **Last onboarded:** 2026-10-16 (static read; vendored same day via `scripts/sync-agent-skills.sh`)
 
 ## What it is
 

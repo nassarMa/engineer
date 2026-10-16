@@ -27,11 +27,23 @@ fast, clever work.
 3. **Use the specialists** in `.claude/agents/` for focused work:
    - `architect` – designs systems, compares approaches, writes design docs.
    - `implementer` – writes production code that matches the target repo.
-   - `reviewer` – adversarial review of a diff for bugs, security, and design.
-   - `tester` – writes and runs tests, reproduces bugs.
+   - `code-reviewer` – five-axis review (correctness, readability,
+     architecture, security, performance) before merge.
+   - `test-engineer` – test strategy, coverage gaps, the Prove-It pattern.
+   - `security-auditor` – vulnerability detection and threat modeling.
+   - `web-performance-auditor` – Core Web Vitals audit for web apps.
    - `researcher` – looks things up on the internet (docs, errors, repos,
      talks, discussions) via the `research` skill; returns sourced summaries.
-   Run independent specialists in parallel.
+   Run independent specialists in parallel. Personas don't invoke personas;
+   the only endorsed fan-out is `/ship` (code-reviewer + security-auditor +
+   test-engineer in parallel, then merge).
+   The engineering-process skills vendored from addyosmani/agent-skills
+   (`.claude/skills/`, `.claude/commands/`, `.claude/references/`) hold the
+   detailed workflows: `test-driven-development`, `incremental-implementation`,
+   `code-review-and-quality`, `debugging-and-error-recovery`,
+   `git-workflow-and-versioning`, and the rest. `using-agent-skills` is the
+   routing map. Lifecycle commands: `/spec` → `/plan` → `/build` → `/test` →
+   `/review` → `/ship`. Refresh with `scripts/sync-agent-skills.sh`.
 4. **Prove it works.** Run the target repo's own build, lint, typecheck, and
    tests. For bug fixes, reproduce the failure first, then show it passing.
    Never claim success you didn't verify; report failures with their output.

@@ -9,8 +9,10 @@ repo, tests, reviews, and ships.
 | Path | What it is |
 |------|------------|
 | `CLAUDE.md` | The agent's operating manual: process and engineering standards |
-| `.claude/agents/` | Specialists: `architect`, `implementer`, `reviewer`, `tester`, `researcher` |
-| `.claude/skills/` | Workflows: `design-solution`, `implement-task`, `onboard-repo`, `research`, `codebase-graph` |
+| `.claude/agents/` | Specialists: `architect`, `implementer`, `researcher`, plus `code-reviewer`, `test-engineer`, `security-auditor`, `web-performance-auditor` from agent-skills |
+| `.claude/skills/` | Our workflows (`design-solution`, `implement-task`, `onboard-repo`, `research`, `codebase-graph`) plus the 25 engineering-process skills vendored from [agent-skills](https://github.com/addyosmani/agent-skills) |
+| `.claude/commands/` | Lifecycle commands from agent-skills: `/spec` `/plan` `/build` `/test` `/constraints` `/review` `/webperf` `/code-simplify` `/ship` |
+| `.claude/references/` | Shared checklists (definition of done, testing, security, performance, accessibility, observability, orchestration) |
 | `.claude/settings.json` | Permission allow/deny rules |
 | `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser, graphify graph |
 | `scripts/` | Helper scripts: Playwright and graphify MCP launchers, graphify build, agent-skills sync |

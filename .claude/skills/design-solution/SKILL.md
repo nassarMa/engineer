@@ -6,7 +6,9 @@ description: Design a solution to a software problem before building it. Use for
 # Design a solution
 
 1. **Frame the problem.** Write down the goal, non-goals, constraints, and
-   success criteria. If a decision only the user can make is blocking, ask now.
+   success criteria. If the ask is vague, run `interview-me` (one question
+   at a time) or `idea-refine` first. If a decision only the user can make is
+   blocking, ask now.
 2. **Investigate.** Read the relevant code in the target repo(s) and the repo's
    notes in `docs/repos/`. Research external libraries or services if needed.
 3. **Design.** Delegate to the `architect` subagent with the framed problem and
@@ -15,6 +17,8 @@ description: Design a solution to a software problem before building it. Use for
    breaks at 10x load, what happens when a dependency fails, how it's tested,
    how it's rolled back. Revise if needed.
 5. **Record it.** Save as `docs/designs/YYYY-MM-DD-<slug>.md` using
-   `templates/design-doc.md`.
+   `templates/design-doc.md`. For a spec the team will build from, use
+   `spec-driven-development`; record the key decision as an ADR per
+   `documentation-and-adrs`.
 6. **Agree it.** Summarize the recommendation and open questions for the user.
    Build only after they agree (then use the `implement-task` skill).

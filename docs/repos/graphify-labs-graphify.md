@@ -9,8 +9,9 @@
 - **Package:** PyPI `graphifyy` (double y; other `graphify*` packages are
   unaffiliated). CLI command is `graphify`.
 - **Default branch:** v8 (studied at `10130e7`, v0.9.91, 2026-10-14)
-- **Last onboarded:** 2026-10-16 (static read; install was blocked in this
-  session, so nothing was executed)
+- **Last onboarded:** 2026-10-16 (installed via `uv tool install
+  "graphifyy[mcp]"`; code-only build of agent-reach: 76 files → 1,542 nodes,
+  3,441 edges, 92 communities in 9 s)
 
 ## How it works
 
