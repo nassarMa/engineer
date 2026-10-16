@@ -34,7 +34,7 @@ reach for it.
 
 | Tool | What it's for | When the agent should use it |
 |------|---------------|------------------------------|
-| _none yet_ | | |
+| `exa` (remote MCP, no key) | Web search and page fetch | Any lookup of docs, errors, comparisons — via the `research` skill |
 
 ## Adding a repository
 
