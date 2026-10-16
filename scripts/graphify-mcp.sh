@@ -16,7 +16,10 @@ find_python() {
   # The graphify skill records its interpreter beside the graph it built.
   local hint="$(dirname "$GRAPH")/.graphify_python"
   if [ -f "$hint" ] && [ -x "$(cat "$hint")" ]; then cat "$hint"; return; fi
-  if command -v uv >/dev/null 2>&1; then
+  # Only use uv's copy if graphifyy is already installed as a uv tool;
+  # `uv tool run --from graphifyy` would download it on first use, and this
+  # launcher must never install anything on its own.
+  if command -v uv >/dev/null 2>&1 && uv tool list 2>/dev/null | grep -q '^graphifyy '; then
     local p; p="$(uv tool run --from graphifyy python -c 'import sys;print(sys.executable)' 2>/dev/null || true)"
     if [ -n "$p" ]; then echo "$p"; return; fi
   fi
