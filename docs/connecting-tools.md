@@ -35,6 +35,19 @@ reach for it.
 | Tool | What it's for | When the agent should use it |
 |------|---------------|------------------------------|
 | `exa` (remote MCP, no key) | Web search and page fetch | Any lookup of docs, errors, comparisons — via the `research` skill |
+| `playwright` (local, `scripts/playwright-mcp.sh`) | Headless browser: navigate, snapshot, click, fill forms, screenshots, console and network logs | Verifying a web UI change in a real browser, reproducing a frontend bug, reading pages that need JavaScript, end-to-end checks |
+
+### Playwright notes
+
+- Runs `@playwright/mcp` (pinned in the wrapper) headless with a fresh,
+  in-memory profile each session; nothing is persisted.
+- In the cloud container it uses the pre-installed Chromium with the
+  sandbox off. On a desktop, install a browser once with
+  `npx @playwright/mcp install-browser` if the server reports none.
+- Screenshots and snapshots go to `$TMPDIR/playwright-mcp` (override with
+  `PLAYWRIGHT_MCP_OUTPUT_DIR`), never into the repo.
+- Never log into real accounts or enter credentials through it; use it on
+  local dev servers, staging, and public pages.
 
 ## Adding a repository
 

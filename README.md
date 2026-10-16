@@ -12,7 +12,8 @@ repo, tests, reviews, and ships.
 | `.claude/agents/` | Specialists: `architect`, `implementer`, `reviewer`, `tester`, `researcher` |
 | `.claude/skills/` | Workflows: `design-solution`, `implement-task`, `onboard-repo`, `research` |
 | `.claude/settings.json` | Permission allow/deny rules |
-| `.mcp.json` | External tools (MCP servers) |
+| `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser |
+| `scripts/` | Helper scripts: Playwright MCP launcher, agent-skills sync |
 | `templates/` | Design doc and repo-notes templates |
 | `docs/designs/` | Designs the agent has produced |
 | `docs/repos/` | What the agent knows about each connected repo |

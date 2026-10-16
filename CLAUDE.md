@@ -62,5 +62,10 @@ fast, clever work.
   Panniantong/agent-reach (`docs/repos/panniantong-agent-reach.md`).
 - Jina Reader, Exa and WebSearch are external services: never send them
   private URLs, source code, secrets, or customer data.
+- A headless browser is available through the `playwright` MCP server
+  (`browser_navigate`, `browser_snapshot`, `browser_click`,
+  `browser_take_screenshot`, console and network tools). Use it to verify
+  web UI changes in a real browser and to reproduce frontend bugs; never
+  enter real credentials through it.
 - Repos the agent works on are listed in `docs/repos/README.md`, with one
   knowledge file per repo.
