@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+/workspace/
+node_modules/
+__pycache__/
+.DS_Store
