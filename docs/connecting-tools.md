@@ -35,6 +35,7 @@ reach for it.
 | Tool | What it's for | When the agent should use it |
 |------|---------------|------------------------------|
 | `exa` (remote MCP, no key) | Web search and page fetch | Any lookup of docs, errors, comparisons — via the `research` skill |
+| `graphify` (local, `scripts/graphify-mcp.sh`) | Query a repo's knowledge graph: `query_graph`, `get_neighbors`, `shortest_path`, `god_nodes`, PR impact | Understanding an unfamiliar codebase; needs `graphifyy[mcp]` installed and `GRAPHIFY_GRAPH` pointing at a built `graph.json` |
 | `playwright` (local, `scripts/playwright-mcp.sh`) | Headless browser: navigate, snapshot, click, fill forms, screenshots, console and network logs | Verifying a web UI change in a real browser, reproducing a frontend bug, reading pages that need JavaScript, end-to-end checks |
 
 ### Playwright notes

@@ -22,6 +22,8 @@ fast, clever work.
      skill first and get the design agreed before building.
    - Need outside knowledge (a library's API, an error message, how others
      solved it): use the `research` skill before guessing.
+   - Unfamiliar codebase, or a "what calls X / how do A and B connect"
+     question: use the `codebase-graph` skill (graphify) before grepping.
 3. **Use the specialists** in `.claude/agents/` for focused work:
    - `architect` – designs systems, compares approaches, writes design docs.
    - `implementer` – writes production code that matches the target repo.
@@ -62,6 +64,9 @@ fast, clever work.
   Panniantong/agent-reach (`docs/repos/panniantong-agent-reach.md`).
 - Jina Reader, Exa and WebSearch are external services: never send them
   private URLs, source code, secrets, or customer data.
+- Codebase knowledge graphs come from graphify (`codebase-graph` skill,
+  `scripts/graphify-build.sh`, `graphify` MCP server). Code parsing is local
+  and keyless; the optional docs pass sends document content to an LLM.
 - A headless browser is available through the `playwright` MCP server
   (`browser_navigate`, `browser_snapshot`, `browser_click`,
   `browser_take_screenshot`, console and network tools). Use it to verify

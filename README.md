@@ -10,10 +10,10 @@ repo, tests, reviews, and ships.
 |------|------------|
 | `CLAUDE.md` | The agent's operating manual: process and engineering standards |
 | `.claude/agents/` | Specialists: `architect`, `implementer`, `reviewer`, `tester`, `researcher` |
-| `.claude/skills/` | Workflows: `design-solution`, `implement-task`, `onboard-repo`, `research` |
+| `.claude/skills/` | Workflows: `design-solution`, `implement-task`, `onboard-repo`, `research`, `codebase-graph` |
 | `.claude/settings.json` | Permission allow/deny rules |
-| `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser |
-| `scripts/` | Helper scripts: Playwright MCP launcher, agent-skills sync |
+| `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser, graphify graph |
+| `scripts/` | Helper scripts: Playwright and graphify MCP launchers, graphify build, agent-skills sync |
 | `templates/` | Design doc and repo-notes templates |
 | `docs/designs/` | Designs the agent has produced |
 | `docs/repos/` | What the agent knows about each connected repo |

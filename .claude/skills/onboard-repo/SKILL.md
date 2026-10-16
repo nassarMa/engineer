@@ -12,6 +12,10 @@ description: Learn a newly connected repository and write a knowledge file for i
    typecheck, and test. Record what works and what needs setup.
 3. Map the architecture: entry points, main modules and what they own, data
    stores, external services, and how a request flows through the system.
+   Build the code graph first if the `graphify` CLI is available
+   (`scripts/graphify-build.sh <repo>`), then use `GRAPH_REPORT.md` for the
+   god nodes and subsystems and `graphify query/path/explain` for details
+   (see the `codebase-graph` skill). Fall back to Grep/Read if it isn't.
 4. Note conventions: code style, error handling, logging, test layout, branch
    and commit conventions, PR template.
 5. Write `docs/repos/<owner>-<repo>.md` from `templates/repo-notes.md` and add

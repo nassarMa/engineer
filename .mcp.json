@@ -7,6 +7,13 @@
     "playwright": {
       "command": "bash",
       "args": ["scripts/playwright-mcp.sh"]
+    },
+    "graphify": {
+      "command": "bash",
+      "args": ["scripts/graphify-mcp.sh"],
+      "env": {
+        "GRAPHIFY_GRAPH": "${GRAPHIFY_GRAPH:-graphify-out/graph.json}"
+      }
     }
   }
 }
