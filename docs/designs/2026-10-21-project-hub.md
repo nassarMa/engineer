@@ -1,6 +1,6 @@
 # Project Hub — a mobile-first home screen for all my AI experiments
 
-- **Status:** Implemented (v1 on branch `claude/project-hub` of nassarMa/mahmood-nassar)
+- **Status:** Live at https://mahmood-nassar.vercel.app (merged to main 2026-10-21; Vercel Git integration deploys main)
 - **Date:** 2026-10-21
 - **Target repo(s):** nassarMa/mahmood-nassar (existing repo, rebuilt from scratch), deployed on Vercel
 
@@ -150,6 +150,6 @@ core flows (open project, open folder, search). ESLint + Prettier.
 - Visual tone: dark, glassy. Seeded with two real projects.
 
 ## Open items
-- Vercel preview deploy once `VERCEL_TOKEN` is provided.
+- Production is deployed by pushing `main` (Vercel Git integration); `VERCEL_TOKEN` is only needed for previews/rollbacks from the agent.
 - Demo clips and Reel links for the two projects.
 - Lighthouse pass not yet run.
