@@ -24,6 +24,7 @@ fast, clever work.
      solved it): use the `research` skill before guessing.
    - Unfamiliar codebase, or a "what calls X / how do A and B connect"
      question: use the `codebase-graph` skill (graphify) before grepping.
+   - Deploying or debugging a deployment: use the `deploy-vercel` skill.
 3. **Use the specialists** in `.claude/agents/` for focused work:
    - `architect` – designs systems, compares approaches, writes design docs.
    - `implementer` – writes production code that matches the target repo.
@@ -79,6 +80,10 @@ fast, clever work.
 - Codebase knowledge graphs come from graphify (`codebase-graph` skill,
   `scripts/graphify-build.sh`, `graphify` MCP server). Code parsing is local
   and keyless; the optional docs pass sends document content to an LLM.
+- Deployments go to Vercel through `scripts/vercel.sh` and the
+  `deploy-vercel` skill (token in `VERCEL_TOKEN`). Preview deployments by
+  default; production only when the user explicitly asks. Verify the URL
+  after every deploy.
 - A headless browser is available through the `playwright` MCP server
   (`browser_navigate`, `browser_snapshot`, `browser_click`,
   `browser_take_screenshot`, console and network tools). Use it to verify

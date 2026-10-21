@@ -7,3 +7,5 @@ node_modules/
 __pycache__/
 .DS_Store
 .playwright-mcp/
+.vercel/
+.env.local
