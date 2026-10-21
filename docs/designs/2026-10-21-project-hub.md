@@ -1,8 +1,8 @@
 # Project Hub — a mobile-first home screen for all my AI experiments
 
-- **Status:** Draft (awaiting agreement)
+- **Status:** Implemented (v1 on branch `claude/project-hub` of nassarMa/mahmood-nassar)
 - **Date:** 2026-10-21
-- **Target repo(s):** new repo under the user's GitHub account (name TBD), deployed on Vercel
+- **Target repo(s):** nassarMa/mahmood-nassar (existing repo, rebuilt from scratch), deployed on Vercel
 
 ## Problem
 Projects (apps, games, tools, experiments) live at scattered URLs. Social
@@ -140,7 +140,16 @@ core flows (open project, open folder, search). ESLint + Prettier.
 7. Playwright e2e for the core flows; Lighthouse pass.
 8. Preview deploy to Vercel; replace samples with real projects.
 
-## Open questions
-1. Repository name and the display name/handle to show (and avatar).
-2. 2–3 real projects to seed (title, URL, one-line description, a Reel link if any).
-3. Visual tone: dark glassy (iOS-like), light minimal, or playful/retro?
+## Decisions made during the build
+- Media lives in `public/projects/<slug>/` (served statically) rather than
+  beside `project.json`; the loader verifies each referenced file exists.
+- OG images use a bundled IBM Plex Sans Arabic WOFF: Satori cannot parse the
+  Noto Arabic faces (GSUB lookupType 5 / substFormat 3) and has no bidi, so
+  RTL titles get their word order reversed before rendering.
+- Playwright uses the container's preinstalled Chromium when present.
+- Visual tone: dark, glassy. Seeded with two real projects.
+
+## Open items
+- Vercel preview deploy once `VERCEL_TOKEN` is provided.
+- Demo clips and Reel links for the two projects.
+- Lighthouse pass not yet run.
