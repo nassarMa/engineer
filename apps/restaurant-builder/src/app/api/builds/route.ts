@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 /** Creates the restaurant record and its build; the client then drives the build via /advance. */
 export async function POST(req: Request) {
   if (isVercel()) {
-    const problems = setupProblems().filter((p) => !p.startsWith('ANTHROPIC'))
+    const problems = setupProblems()
     if (problems.length) return jsonError(503, 'setup_incomplete', problems.join(' '))
   }
   let body: unknown
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
   const db = await getDb()
   const ip = clientIp(req)
   if (!(await allowRate(db, `build:${ip}`, Number(process.env.BUILD_RATE_LIMIT ?? 6), 3600))) return jsonError(429, 'rate_limited', 'Too many websites were built from this connection recently.')
+  if (!(await allowRate(db, 'build:global', Number(process.env.BUILD_DAILY_BUDGET ?? 200), 86400))) return jsonError(429, 'rate_limited', 'The daily build limit for this platform was reached. Please try again tomorrow.')
 
   // Every referenced upload must exist and be of the right kind.
   const wanted = [

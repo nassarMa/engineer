@@ -16,12 +16,15 @@ export type Locale = z.infer<typeof localeSchema>
 
 export const logoModeSchema = z.enum(['none', 'upload', 'in-menu'])
 
+/** Owner-typed text: never markup. */
+const plain = (min: number, max: number) => z.string().trim().min(min).max(max).refine((v) => !/[<>]/.test(v), { message: 'must not contain < or >' })
+
 export const restaurantInputSchema = z.object({
   locale: localeSchema,
-  name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().min(5).max(30),
-  address: z.string().trim().min(3).max(200),
-  description: z.string().trim().max(600).default(''),
+  name: plain(1, 80),
+  phone: plain(5, 30),
+  address: plain(3, 200),
+  description: plain(0, 600).default(''),
   websiteLang: localeSchema,
   logoMode: logoModeSchema.default('none'),
   menuUploadIds: z.array(z.string().min(1)).min(1).max(8),
@@ -31,10 +34,10 @@ export const restaurantInputSchema = z.object({
 export type RestaurantInput = z.infer<typeof restaurantInputSchema>
 
 export const restaurantUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().min(5).max(30),
-  address: z.string().trim().min(3).max(200),
-  description: z.string().trim().max(600),
+  name: plain(1, 80),
+  phone: plain(5, 30),
+  address: plain(3, 200),
+  description: plain(0, 600),
 })
 export type RestaurantUpdate = z.infer<typeof restaurantUpdateSchema>
 

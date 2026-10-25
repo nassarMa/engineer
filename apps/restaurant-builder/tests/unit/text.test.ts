@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mapsUrl, slugify, telHref, scriptsIn } from '@/lib/text'
+import { mapsUrl, slugify, telHref } from '@/lib/text'
 
 describe('slugify', () => {
   it('turns Latin names into slugs', () => {
@@ -26,12 +26,5 @@ describe('telHref', () => {
 describe('mapsUrl', () => {
   it('encodes the address', () => {
     expect(mapsUrl('Ha-Yarkon 10, Tel Aviv')).toBe('https://www.google.com/maps/search/?api=1&query=Ha-Yarkon%2010%2C%20Tel%20Aviv')
-  })
-})
-
-describe('scriptsIn', () => {
-  it('detects scripts', () => {
-    expect(scriptsIn('شاورما Shawarma')).toEqual({ arabic: true, hebrew: false, latin: true })
-    expect(scriptsIn('שווארמה')).toEqual({ arabic: false, hebrew: true, latin: false })
   })
 })

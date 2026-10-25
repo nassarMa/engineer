@@ -61,7 +61,9 @@ The app refuses to pretend: on Vercel it returns a clear error until these exist
 | `BLOB_READ_WRITE_TOKEN` | yes on Vercel | Vercel Blob store token (Storage tab → Create Blob store → connect to project). |
 | `APP_URL` | recommended | Public URL of the deployment, e.g. `https://builder.example.com`. Falls back to Vercel's production URL. |
 | `PLATFORM_DOMAIN` | optional | e.g. `sites.example.com`. Add the domain **and** `*.sites.example.com` to the Vercel project and point both at Vercel (CNAME `cname.vercel-dns.com`). Sites become `https://<slug>.sites.example.com`. Without it, sites are `APP_URL/r/<slug>`. |
-| `BUILD_RATE_LIMIT`, `UPLOAD_RATE_LIMIT` | no | Per-IP per hour (default 6 builds, 120 uploads). |
+| `BUILD_RATE_LIMIT`, `UPLOAD_RATE_LIMIT`, `BUILD_DAILY_BUDGET` | no | Per-IP per hour (default 6 builds, 120 uploads) and a platform-wide daily build ceiling (default 200) that bounds AI spend. |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | previews only | Set when Vercel Deployment Protection is on, so the build can fetch its own preview pages for the render check. |
+| `TRUST_PROXY` | self-hosting only | `1` when behind your own reverse proxy, so rate limits use the forwarded client address. Vercel is trusted automatically. |
 
 Vercel setup: import the repository, set **Root Directory** to
 `apps/restaurant-builder`, add the variables above, deploy. Function duration for
@@ -69,7 +71,11 @@ Vercel setup: import the repository, set **Root Directory** to
 Compute needed for long menus).
 
 Limits worth knowing: one upload per request, 4 MB each (images are downscaled
-in the browser first); up to 8 menu files and 12 photos per restaurant.
+in the browser first); up to 8 menu files and 12 photos per restaurant; a failed
+build can be retried 3 times. Logo extraction from the menu works for image
+menus, not PDF pages. Mock mode (`AI_PROVIDER=mock`) is refused on Vercel unless
+set explicitly, so a deployment without an API key fails clearly instead of
+publishing placeholder content.
 
 ## Layout
 

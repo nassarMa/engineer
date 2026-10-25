@@ -45,7 +45,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ slug: string 
     site = structuredClone(site)
     const nameChanged = u.name !== r.name
     site.restaurant = { ...site.restaurant, name: u.name, phone: u.phone, telHref: tel, address: u.address, mapsUrl: mapsUrl(u.address) }
-    if (nameChanged) site.content.displayName = u.name
+    if (nameChanged) {
+      const old = site.content.displayName
+      site.content.displayName = u.name
+      site.content.seoTitle = site.content.seoTitle.includes(old) ? site.content.seoTitle.replace(old, u.name).slice(0, 70) : site.content.seoTitle
+    }
     if (u.description !== r.description) {
       // The owner's own words replace the AI text; an empty description removes the section.
       site.content.about = u.description.trim() || null

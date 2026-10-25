@@ -2,7 +2,7 @@ import { getAiProvider } from '../ai'
 import type { MenuFile, PhotoRef } from '../ai/types'
 import type { Db } from '../db'
 import { getUploads, insertUpload, updateRestaurant, type RestaurantRow, type UploadRow } from '../db/repo'
-import { appUrl, publicSiteUrl } from '../env'
+import { appUrl, publicSiteUrl, selfFetchHeaders } from '../env'
 import { autofix, checkSite, hasCritical, type Issue } from '../qa'
 import { brandSchema, contentSchema, designSchema, extractedMenuSchema, type SiteConfig, type Stage } from '../schemas'
 import { getStorage } from '../storage'
@@ -65,18 +65,26 @@ export async function runExtract(ctx: StageContext): Promise<string> {
   }
 
   let logoNote = ''
-  if (restaurant.logo_mode === 'in-menu' && !restaurant.logo_upload_id && extracted.branding.logoDetected && extracted.branding.logoBox) {
-    const box = extracted.branding.logoBox
-    const source = pageBytes[box.page] ?? null
-    if (source) {
-      const crop = await cropBox(source, box)
-      if (crop && (await ai.judgeLogo(crop))) {
-        const key = `${crypto.randomUUID().replace(/-/g, '')}.webp`
-        const { url } = await getStorage().put(key, crop.bytes, crop.mime)
-        const row = await insertUpload(db, { kind: 'logo', mime: crop.mime, bytes: crop.bytes.length, width: crop.width, height: crop.height, storage_key: key, url, ip: null })
-        await updateRestaurant(db, restaurant.id, { logo_upload_id: row.id })
-        logoNote = 'logo extracted from menu'
-      } else logoNote = 'logo on menu not clean enough; using typographic name'
+  if (restaurant.logo_mode === 'in-menu' && !restaurant.logo_upload_id) {
+    // A failed crop must never fail the stage: the extraction is already paid for, and "no logo" is a fine outcome.
+    try {
+      const box = extracted.branding.logoDetected ? extracted.branding.logoBox : null
+      const source = box ? pageBytes[box.page] ?? null : null
+      if (!box) logoNote = 'no logo found on the menu; using typographic name'
+      else if (!source) logoNote = 'logo detected on a PDF page; cropping is only supported for image menus, using typographic name'
+      else {
+        const crop = await cropBox(source, box)
+        if (crop && (await ai.judgeLogo(crop))) {
+          const key = `${crypto.randomUUID().replace(/-/g, '')}.webp`
+          const { url } = await getStorage().put(key, crop.bytes, crop.mime)
+          const row = await insertUpload(db, { kind: 'logo', mime: crop.mime, bytes: crop.bytes.length, width: crop.width, height: crop.height, storage_key: key, url, ip: null })
+          await updateRestaurant(db, restaurant.id, { logo_upload_id: row.id })
+          logoNote = 'logo extracted from menu'
+        } else logoNote = 'logo on menu not clean enough; using typographic name'
+      }
+    } catch (e) {
+      console.warn(`[${restaurant.slug}] logo crop failed`, e)
+      logoNote = 'logo crop failed; using typographic name'
     }
   }
   await updateRestaurant(db, restaurant.id, { extracted_menu: extracted })
@@ -169,7 +177,7 @@ export async function runQa(ctx: StageContext): Promise<string> {
   }
   await updateRestaurant(db, restaurant.id, { site_config: config })
 
-  // Render check: the real page must serve with the right language and the restaurant name.
+  // Render check: the real page must serve (preview token, not yet public) with the right language and content.
   const previewUrl = `${appUrl()}/r/${restaurant.slug}?preview=${encodeURIComponent(restaurant.preview_token)}`
   report.renderCheck = await renderCheck(previewUrl, config)
   await updateRestaurant(db, restaurant.id, { qa_report: report })
@@ -184,7 +192,7 @@ async function renderCheck(url: string, config: SiteConfig): Promise<{ ok: boole
   let html: string
   try {
     const res = await fetchWithTimeout(url, 20000)
-    if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` }
+    if (!res.ok) return { ok: false, detail: `HTTP ${res.status} from ${url} (check APP_URL and, on Vercel previews, VERCEL_AUTOMATION_BYPASS_SECRET)` }
     html = await res.text()
   } catch (e) {
     return { ok: false, detail: `fetch failed: ${(e as Error).message}` }
@@ -192,11 +200,12 @@ async function renderCheck(url: string, config: SiteConfig): Promise<{ ok: boole
   const problems: string[] = []
   if (!html.includes(`lang="${config.lang}"`)) problems.push('html lang missing')
   if (!html.includes(`dir="${config.dir}"`)) problems.push('html dir missing')
+  if (!html.includes('<meta name="viewport"')) problems.push('viewport meta missing')
+  if (!html.includes('<meta name="description"')) problems.push('meta description missing')
   if (!html.includes(escapeHtml(config.content.displayName))) problems.push('restaurant name missing')
   if (!html.includes(`href="${config.restaurant.telHref}"`)) problems.push('call link missing')
   if (!html.includes('href="https://www.google.com/maps/')) problems.push('directions link missing')
-  if (!html.includes('<meta name="viewport"')) problems.push('viewport meta missing')
-  if (!html.includes('<meta name="description"')) problems.push('meta description missing')
+  if (!html.includes('id="menu"') || !html.includes('id="contact"')) problems.push('menu or contact section missing')
   if (config.menu.mode === 'structured') {
     for (const c of config.menu.categories) for (const it of c.items) if (it.price && !html.includes(escapeHtml(it.price))) problems.push(`price ${it.price} missing`)
   }
@@ -211,7 +220,7 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), ms)
   try {
-    return await fetch(url, { signal: ctl.signal, cache: 'no-store', redirect: 'follow' })
+    return await fetch(url, { signal: ctl.signal, cache: 'no-store', redirect: 'follow', headers: selfFetchHeaders() })
   } finally {
     clearTimeout(timer)
   }
@@ -229,7 +238,8 @@ export async function runPublish(ctx: StageContext): Promise<string> {
       const res = await fetchWithTimeout(url, 20000)
       if (res.ok) {
         const html = await res.text()
-        if (html.includes(escapeHtml(restaurant.site_config.content.displayName))) {
+        // The public page must carry the language/direction and the restaurant content.
+        if (html.includes(`lang="${restaurant.site_config.lang}"`) && html.includes(`dir="${restaurant.site_config.dir}"`) && html.includes(escapeHtml(restaurant.site_config.content.displayName))) {
           await updateRestaurant(db, restaurant.id, { verified_at: new Date().toISOString() })
           return url
         }

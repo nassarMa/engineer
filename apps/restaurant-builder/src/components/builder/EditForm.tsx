@@ -6,10 +6,24 @@ import { useClientValue } from './useClientValue'
 
 type Basics = { name: string; phone: string; address: string; description: string; publishedUrl: string | null }
 
-export function EditForm({ t, slug, initialKey }: { locale: Locale; t: Dictionary; slug: string; initialKey: string | null }) {
-  const stored = useClientValue(() => ownerKeyStorage(slug).get(), null)
+/** Deep links may carry the key in the URL fragment (#key=...), which never reaches server logs. */
+const fragmentKeys = new Map<string, string | null>()
+function keyFromFragment(slug: string): string | null {
+  // Read once per page load so the value stays stable after the fragment is stripped from the URL.
+  if (!fragmentKeys.has(slug)) {
+    const m = window.location.hash.match(/^#key=([A-Za-z0-9_-]+)$/)
+    fragmentKeys.set(slug, m ? m[1] : null)
+  }
+  return fragmentKeys.get(slug) ?? null
+}
+
+export function EditForm({ t, slug }: { locale: Locale; t: Dictionary; slug: string }) {
+  const stored = useClientValue(() => keyFromFragment(slug) ?? ownerKeyStorage(slug).get(), null)
   const [typed, setTyped] = useState<string | null>(null)
-  const key = typed ?? initialKey ?? stored ?? ''
+  const key = typed ?? stored ?? ''
+  useEffect(() => {
+    if (window.location.hash.startsWith('#key=')) history.replaceState(null, '', window.location.pathname)
+  }, [])
   const [data, setData] = useState<Basics | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)

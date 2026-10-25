@@ -46,11 +46,3 @@ export function dirOf(lang: Locale): 'rtl' | 'ltr' {
   return lang === 'en' ? 'ltr' : 'rtl'
 }
 
-/** Script detection for picking fonts that actually cover the text. */
-export function scriptsIn(text: string): { arabic: boolean; hebrew: boolean; latin: boolean } {
-  return {
-    arabic: /[؀-ۿݐ-ݿ]/.test(text),
-    hebrew: /[֐-׿]/.test(text),
-    latin: /[A-Za-z]/.test(text),
-  }
-}

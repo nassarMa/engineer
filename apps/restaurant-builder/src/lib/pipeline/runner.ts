@@ -1,5 +1,5 @@
 import type { Db } from '../db'
-import { failStage, finishStage, getBuild, getRestaurantById, lockBuild, updateRestaurant, type BuildRow } from '../db/repo'
+import { failStage, finishStage, getBuild, getRestaurantById, lockBuild, MAX_ATTEMPTS, updateRestaurant, type BuildRow } from '../db/repo'
 import { nextStage, type Stage } from '../schemas'
 import { AiError } from '../ai/types'
 import { STAGE_RUNNERS, StageError } from './stages'
@@ -10,6 +10,7 @@ export type BuildView = {
   status: BuildRow['status']
   attempt: number
   error: string | null
+  retryable: boolean
   slug: string
   publishedUrl: string | null
   verified: boolean
@@ -27,6 +28,7 @@ export async function viewBuild(db: Db, buildId: string): Promise<BuildView | nu
     status: build.status,
     attempt: build.attempt,
     error: build.error,
+    retryable: build.retryable && build.attempt < MAX_ATTEMPTS,
     slug: restaurant.slug,
     publishedUrl: restaurant.status === 'published' && restaurant.verified_at ? restaurant.published_url : null,
     verified: Boolean(restaurant.verified_at),
@@ -43,22 +45,24 @@ export async function advanceBuild(db: Db, buildId: string, opts: { retry?: bool
   const locked = await lockBuild(db, buildId, Boolean(opts.retry))
   if (!locked) return viewBuild(db, buildId)
   if (locked.stage === 'done') {
-    await finishStage(db, buildId, 'done', { stage: 'done', ms: 0 })
+    await finishStage(db, locked, 'done', { stage: 'done', ms: 0 })
     return viewBuild(db, buildId)
   }
   const restaurant = await getRestaurantById(db, locked.restaurant_id)
   if (!restaurant) {
-    await failStage(db, buildId, 'Restaurant record is missing.')
+    await failStage(db, locked, 'Restaurant record is missing.', false)
     return viewBuild(db, buildId)
   }
   const started = Date.now()
   try {
     const note = await STAGE_RUNNERS[locked.stage]({ db, restaurant })
-    await finishStage(db, buildId, nextStage(locked.stage), { stage: locked.stage, ms: Date.now() - started, note })
+    const written = await finishStage(db, locked, nextStage(locked.stage), { stage: locked.stage, ms: Date.now() - started, note })
+    if (!written) console.warn(`[build ${buildId}] ${locked.stage} finished after its lock was taken over; result discarded`)
   } catch (e) {
-    const message = e instanceof StageError || e instanceof AiError ? e.message : `Unexpected error in ${locked.stage}: ${(e as Error).message}`
+    const known = e instanceof StageError || e instanceof AiError
+    const message = known ? e.message : `Unexpected error while running "${locked.stage}". Please try again.`
     console.error(`[build ${buildId}] ${locked.stage} failed:`, e)
-    await failStage(db, buildId, message)
+    await failStage(db, locked, message, known ? e.retryable : true)
     if (locked.stage === 'publish') await updateRestaurant(db, restaurant.id, { status: 'failed' })
   }
   return viewBuild(db, buildId)

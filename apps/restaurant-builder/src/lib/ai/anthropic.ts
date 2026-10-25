@@ -11,7 +11,8 @@ import { AiError, type AiProvider, type BrandContext, type ContentContext, type 
  * schema is the contract and the SDK rejects anything that does not match.
  */
 export function createAnthropicProvider(): AiProvider {
-  const client = new Anthropic({ timeout: 10 * 60 * 1000, maxRetries: 2 })
+  // Must finish inside the advance route's 300 s budget, so a slow request fails cleanly instead of being killed mid-flight.
+  const client = new Anthropic({ timeout: 240 * 1000, maxRetries: 1 })
   const model = aiModel()
 
   async function parse<S extends z.ZodType>(opts: {

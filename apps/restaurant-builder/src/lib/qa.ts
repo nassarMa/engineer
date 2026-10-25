@@ -30,8 +30,9 @@ export function checkSite(config: SiteConfig, extracted: ExtractedMenu): Issue[]
 
   // Prices: structured menu must mirror the extraction exactly.
   if (config.menu.mode === 'structured') {
+    // Items whose name could not be read are deliberately left off the site; everything else must be present.
     const extractedById = new Map<string, { price: string | null; confidence: 'high' | 'low' }>()
-    for (const c of extracted.categories) for (const it of c.items) extractedById.set(it.id, { price: it.price, confidence: it.priceConfidence })
+    for (const c of extracted.categories) for (const it of c.items) if (it.nameConfidence === 'high') extractedById.set(it.id, { price: it.price, confidence: it.priceConfidence })
     const seen = new Set<string>()
     let total = 0
     for (const c of config.menu.categories) {
@@ -100,7 +101,7 @@ export function hasCritical(issues: Issue[]): boolean {
   return issues.some((i) => i.severity === 'critical')
 }
 
-const cut = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…')
+const cut = (s: string, n: number) => (s.length <= n ? s : Array.from(s).slice(0, n - 1).join('').trimEnd() + '…')
 
 /** Repair what can be repaired deterministically; the caller re-checks afterwards. */
 export function autofix(config: SiteConfig, extracted: ExtractedMenu, issues: Issue[]): SiteConfig {

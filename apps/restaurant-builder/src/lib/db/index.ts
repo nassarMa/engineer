@@ -60,10 +60,13 @@ const MIGRATIONS = [
      attempt INTEGER NOT NULL DEFAULT 1,
      error TEXT,
      log JSONB NOT NULL DEFAULT '[]',
+     retryable BOOLEAN NOT NULL DEFAULT true,
      locked_at TIMESTAMPTZ,
      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
+  // Additive changes for databases created by earlier versions.
+  `ALTER TABLE builds ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NULL DEFAULT true`,
   `CREATE TABLE IF NOT EXISTS rate_limits (
      key TEXT PRIMARY KEY,
      window_start TIMESTAMPTZ NOT NULL,
@@ -71,8 +74,14 @@ const MIGRATIONS = [
    )`,
 ]
 
-async function migrate(db: Db): Promise<void> {
-  for (const sql of MIGRATIONS) await db.query(sql)
+async function migrate(db: Db, serialize: boolean): Promise<void> {
+  // Concurrent cold starts must not race on CREATE TABLE; Postgres gets an advisory lock.
+  if (serialize) await db.query('SELECT pg_advisory_lock(7418291)')
+  try {
+    for (const sql of MIGRATIONS) await db.query(sql)
+  } finally {
+    if (serialize) await db.query('SELECT pg_advisory_unlock(7418291)')
+  }
 }
 
 async function openPostgres(url: string): Promise<Db> {
@@ -86,7 +95,7 @@ async function openPostgres(url: string): Promise<Db> {
       await sql.end()
     },
   }
-  await migrate(db)
+  await migrate(db, true)
   return db
 }
 
@@ -106,7 +115,7 @@ async function openPglite(dir: string | undefined): Promise<Db> {
       await pg.close()
     },
   }
-  await migrate(db)
+  await migrate(db, false)
   return db
 }
 

@@ -3,7 +3,8 @@
 export function appUrl(): string {
   const explicit = process.env.APP_URL?.replace(/\/$/, '')
   if (explicit) return explicit
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  // Preview deployments must verify themselves, not the production domain.
+  if (process.env.VERCEL_ENV === 'production' && process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return `http://localhost:${process.env.PORT ?? 3000}`
 }
@@ -34,12 +35,19 @@ export function dataDir(): string {
 /** What is missing for a real deployment; empty when everything is configured. */
 export function setupProblems(): string[] {
   const problems: string[] = []
-  if (!process.env.ANTHROPIC_API_KEY && process.env.AI_PROVIDER !== 'mock') problems.push('ANTHROPIC_API_KEY is not set (AI runs in mock mode).')
+  // The mock provider must be an explicit choice (AI_PROVIDER=mock), never a silent fallback on a real deployment.
+  if (!process.env.ANTHROPIC_API_KEY && process.env.AI_PROVIDER !== 'mock') problems.push('ANTHROPIC_API_KEY is not set.')
   if (isVercel()) {
     if (!process.env.DATABASE_URL) problems.push('DATABASE_URL is not set; Vercel has no persistent disk.')
     if (!process.env.BLOB_READ_WRITE_TOKEN) problems.push('BLOB_READ_WRITE_TOKEN is not set; uploads cannot be stored.')
   }
   return problems
+}
+
+/** Headers for the app fetching its own pages (Vercel deployment protection on previews). */
+export function selfFetchHeaders(): Record<string, string> {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+  return secret ? { 'x-vercel-protection-bypass': secret } : {}
 }
 
 export function publicSiteUrl(slug: string): string {

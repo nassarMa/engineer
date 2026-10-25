@@ -120,3 +120,7 @@
 .site.texture-grain { background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px); background-size: 6px 6px; }
 .site.texture-lines { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 14px); }
 html:has(> body > .site), body:has(> .site) { margin: 0; padding: 0; }
+
+/* Arabic is cursive: letter-spacing breaks the joins. */
+.site:lang(ar) .eyebrow, .site:lang(ar) .contact-card dt { letter-spacing: 0; }
+.site:lang(ar) h1, .site:lang(ar) h2, .site:lang(ar) h3 { letter-spacing: 0; }

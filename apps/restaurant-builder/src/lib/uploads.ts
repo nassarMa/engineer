@@ -41,7 +41,7 @@ export async function processUpload(bytes: Uint8Array, kind: UploadKind): Promis
     return { key: `${randomBytes(16).toString('base64url')}.pdf`, mime, bytes, width: null, height: null }
   }
   try {
-    const image = sharp(Buffer.from(bytes), { failOn: 'error' }).rotate()
+    const image = sharp(Buffer.from(bytes), { failOn: 'error', limitInputPixels: 30_000_000 }).rotate()
     const meta = await image.metadata()
     if (!meta.width || !meta.height) throw new UploadError('Image could not be read.', 'corrupt')
     const resized = image.resize({ width: MAX_SIDE[kind], height: MAX_SIDE[kind], fit: 'inside', withoutEnlargement: true })
@@ -68,10 +68,12 @@ export async function thumbnail(bytes: Uint8Array, maxSide: number): Promise<{ b
 export async function cropBox(bytes: Uint8Array, box: { x: number; y: number; w: number; h: number }): Promise<{ bytes: Uint8Array; mime: 'image/webp'; width: number; height: number } | null> {
   const meta = await sharp(Buffer.from(bytes)).metadata()
   if (!meta.width || !meta.height) return null
-  const left = Math.round(Math.max(0, Math.min(1, box.x)) * meta.width)
-  const top = Math.round(Math.max(0, Math.min(1, box.y)) * meta.height)
-  const width = Math.round(Math.max(0, Math.min(1 - box.x, box.w)) * meta.width)
-  const height = Math.round(Math.max(0, Math.min(1 - box.y, box.h)) * meta.height)
+  const cx = Math.max(0, Math.min(1, box.x))
+  const cy = Math.max(0, Math.min(1, box.y))
+  const left = Math.round(cx * meta.width)
+  const top = Math.round(cy * meta.height)
+  const width = Math.min(meta.width - left, Math.round(Math.max(0, Math.min(1 - cx, box.w)) * meta.width))
+  const height = Math.min(meta.height - top, Math.round(Math.max(0, Math.min(1 - cy, box.h)) * meta.height))
   if (width < 96 || height < 48) return null
   if (width / height > 6 || height / width > 4) return null
   const out = await sharp(Buffer.from(bytes)).extract({ left, top, width, height }).webp({ quality: 90 }).toBuffer({ resolveWithObject: true })

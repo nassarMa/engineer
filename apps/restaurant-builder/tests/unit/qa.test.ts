@@ -80,3 +80,15 @@ describe('quality gate', () => {
     expect(fixed.content.seoTitle.length).toBeLessThanOrEqual(70)
   })
 })
+
+describe('low-confidence names', () => {
+  it('leaves unreadable item names off the site without failing the build', () => {
+    const shaky = structuredClone(extracted)
+    shaky.categories[0].items[1].nameConfidence = 'low'
+    const rebuilt = autofix(config, shaky, checkSite(config, shaky))
+    const ids = rebuilt.menu.categories[0].items.map((i) => i.id)
+    expect(ids).not.toContain('c1-2')
+    expect(ids).toContain('c1-1')
+    expect(hasCritical(checkSite(rebuilt, shaky))).toBe(false)
+  })
+})

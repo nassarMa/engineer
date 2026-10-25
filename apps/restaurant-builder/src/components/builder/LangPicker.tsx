@@ -12,7 +12,6 @@ export function LangPicker() {
           role="listitem"
           data-testid={`lang-${l}`}
           onClick={() => {
-            document.cookie = `rb_locale=${l};path=/;max-age=31536000;samesite=lax`
             router.push(`/${l}`)
           }}
           className={`card rise rise-${i + 1} flex min-h-20 items-center justify-between px-6 text-start transition hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99]`}

@@ -77,7 +77,7 @@ test('Arabic builder → Hebrew site; owner edits the phone number afterwards', 
   await expect(page.locator('a[href="tel:+97235550199"]').first()).toBeVisible()
 
   // A wrong key is refused.
-  await page.goto(`/en/edit/${slug}?key=wrong-key`)
+  await page.goto(`/en/edit/${slug}#key=wrong-key`)
   await expect(page.getByTestId('edit-form').getByRole('alert')).toContainText('The edit key is wrong.')
 })
 

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Dictionary, Locale } from '@/lib/i18n'
 import type { Stage } from '@/lib/schemas'
 
-type View = { id: string; stage: Stage; status: 'waiting' | 'running' | 'failed' | 'done'; error: string | null; slug: string; publishedUrl: string | null; attempt: number }
+type View = { id: string; stage: Stage; status: 'waiting' | 'running' | 'failed' | 'done'; error: string | null; retryable: boolean; slug: string; publishedUrl: string | null; attempt: number }
 
 const VISIBLE: Exclude<Stage, 'done'>[] = ['extract', 'brand', 'design', 'content', 'qa', 'publish']
 
@@ -15,6 +15,7 @@ export function BuildProgress({ locale, t, buildId }: { locale: Locale; t: Dicti
   const [netError, setNetError] = useState(false)
   const busy = useRef(false)
   const stopped = useRef(false)
+  const failedRef = useRef(false)
 
   useEffect(() => {
     stopped.current = false
@@ -26,6 +27,7 @@ export function BuildProgress({ locale, t, buildId }: { locale: Locale; t: Dicti
         if (!res.ok) throw new Error(String(res.status))
         const v = (await res.json()) as View
         setView(v)
+        failedRef.current = v.status === 'failed'
         setNetError(false)
         if (v.status === 'done') {
           stopped.current = true
@@ -39,7 +41,7 @@ export function BuildProgress({ locale, t, buildId }: { locale: Locale; t: Dicti
     }
     void step()
     const timer = setInterval(() => {
-      if (view?.status === 'failed') return
+      if (failedRef.current) return
       void step()
     }, 2500)
     return () => {
@@ -54,6 +56,7 @@ export function BuildProgress({ locale, t, buildId }: { locale: Locale; t: Dicti
 
   async function retry() {
     setView((v) => (v ? { ...v, status: 'waiting', error: null } : v))
+    failedRef.current = false
     busy.current = false
     const res = await fetch(`/api/builds/${buildId}/advance`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ retry: true }) })
     if (res.ok) setView((await res.json()) as View)
@@ -80,7 +83,7 @@ export function BuildProgress({ locale, t, buildId }: { locale: Locale; t: Dicti
           <p className="text-lg font-bold text-danger">{t.buildFailed}</p>
           <p className="text-sm text-ink-soft" dir="auto">{view?.error}</p>
           <div className="flex flex-wrap gap-2">
-            <button className="btn-secondary" onClick={retry} data-testid="retry">{t.retry}</button>
+            {view?.retryable ? <button className="btn-secondary" onClick={retry} data-testid="retry">{t.retry}</button> : null}
             <Link className="btn-secondary" href={`/${locale}`}>{t.startOver}</Link>
           </div>
         </div>

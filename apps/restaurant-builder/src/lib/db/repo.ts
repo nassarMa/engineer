@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Db } from './index'
 import type { Brand, Content, Design, ExtractedMenu, Locale, RestaurantInput, RestaurantUpdate, SiteConfig, Stage, BuildStatus } from '../schemas'
 import { isReservedSlug, randomSuffix, slugify } from '../text'
@@ -49,8 +49,12 @@ export type BuildRow = {
   attempt: number
   error: string | null
   log: { stage: string; at: string; ms: number; note?: string }[]
+  retryable: boolean
   locked_at: string | null
 }
+
+/** Locks older than this are considered dead. Must exceed the advance route's maxDuration (300 s). */
+export const LOCK_TTL_SECONDS = 420
 
 export function hashKey(key: string): string {
   return createHash('sha256').update(key).digest('hex')
@@ -91,14 +95,22 @@ export async function reserveSlug(db: Db, name: string): Promise<string> {
 
 export async function createRestaurant(db: Db, input: RestaurantInput): Promise<{ restaurant: RestaurantRow; build: BuildRow; ownerKey: string }> {
   const id = randomUUID()
-  const slug = await reserveSlug(db, input.name)
   const ownerKey = newOwnerKey()
   const previewToken = randomBytes(12).toString('base64url')
-  await db.query(
-    `INSERT INTO restaurants (id, slug, name, phone, address, description, website_lang, builder_locale, logo_mode, logo_upload_id, menu_upload_ids, photo_upload_ids, owner_key_hash, preview_token, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'building')`,
-    [id, slug, input.name, input.phone, input.address, input.description, input.websiteLang, input.locale, input.logoMode, input.logoUploadId, JSON.stringify(input.menuUploadIds), JSON.stringify(input.photoUploadIds), hashKey(ownerKey), previewToken],
-  )
+  // Two owners creating the same name at once can race on the unique slug; try again with a new suffix.
+  for (let attempt = 0; ; attempt++) {
+    const slug = await reserveSlug(db, input.name)
+    try {
+      await db.query(
+        `INSERT INTO restaurants (id, slug, name, phone, address, description, website_lang, builder_locale, logo_mode, logo_upload_id, menu_upload_ids, photo_upload_ids, owner_key_hash, preview_token, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'building')`,
+        [id, slug, input.name, input.phone, input.address, input.description, input.websiteLang, input.locale, input.logoMode, input.logoUploadId, JSON.stringify(input.menuUploadIds), JSON.stringify(input.photoUploadIds), hashKey(ownerKey), previewToken],
+      )
+      break
+    } catch (e) {
+      if (attempt >= 3 || !/unique|duplicate/i.test((e as Error).message)) throw e
+    }
+  }
   const buildId = randomUUID()
   await db.query(`INSERT INTO builds (id, restaurant_id) VALUES ($1,$2)`, [buildId, id])
   const restaurant = (await getRestaurantById(db, id))!
@@ -119,6 +131,7 @@ export async function getRestaurantBySlug(db: Db, slug: string): Promise<Restaur
 export async function updateRestaurant(db: Db, id: string, patch: Partial<Record<keyof RestaurantRow, unknown>>): Promise<void> {
   const keys = Object.keys(patch)
   if (keys.length === 0) return
+  for (const k of keys) if (!/^[a-z_]+$/.test(k)) throw new Error(`bad column ${k}`)
   const sets = keys.map((k, i) => `${k} = $${i + 2}`)
   const values = keys.map((k) => {
     const v = (patch as Record<string, unknown>)[k]
@@ -133,7 +146,9 @@ export async function updateBasics(db: Db, id: string, update: RestaurantUpdate)
 
 export function verifyOwnerKey(restaurant: RestaurantRow, key: string | null | undefined): boolean {
   if (!key) return false
-  return hashKey(key) === restaurant.owner_key_hash
+  const a = Buffer.from(hashKey(key))
+  const b = Buffer.from(restaurant.owner_key_hash)
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 
 export async function getBuild(db: Db, id: string): Promise<BuildRow | null> {
@@ -141,41 +156,49 @@ export async function getBuild(db: Db, id: string): Promise<BuildRow | null> {
   return rows[0] ?? null
 }
 
-export async function latestBuildForRestaurant(db: Db, restaurantId: string): Promise<BuildRow | null> {
-  const rows = await db.query<BuildRow>(`SELECT * FROM builds WHERE restaurant_id = $1 ORDER BY created_at DESC LIMIT 1`, [restaurantId])
-  return rows[0] ?? null
-}
-
 /**
- * Take the build lock. Returns the row when this caller owns it; null when another
- * request is already running a stage (locks older than 5 minutes are considered dead).
+ * Take the build lock. Returns the row (with the lock token in locked_at) when this
+ * caller owns it; null when another request is already running a stage. A dead
+ * lock (older than LOCK_TTL_SECONDS) is taken over and counts as a new attempt.
  */
 export async function lockBuild(db: Db, id: string, retry: boolean): Promise<BuildRow | null> {
   const rows = await db.query<BuildRow>(
-    `UPDATE builds SET locked_at = now(), status = 'running', updated_at = now(),
+    `UPDATE builds SET locked_at = clock_timestamp(), status = 'running', updated_at = now(),
        error = CASE WHEN $2 THEN NULL ELSE error END,
-       attempt = CASE WHEN $2 THEN attempt + 1 ELSE attempt END
+       attempt = CASE WHEN $2 OR status = 'running' THEN attempt + 1 ELSE attempt END
      WHERE id = $1
-       AND (locked_at IS NULL OR locked_at < now() - interval '5 minutes')
-       AND (status = 'waiting' OR ($2 AND status = 'failed') OR (status = 'running' AND locked_at < now() - interval '5 minutes'))
+       AND (locked_at IS NULL OR locked_at < now() - ($4 || ' seconds')::interval)
+       AND (status = 'waiting' OR ($2 AND status = 'failed' AND retryable AND attempt < $3) OR (status = 'running' AND attempt < $3))
      RETURNING *`,
-    [id, retry],
+    [id, retry, MAX_ATTEMPTS, String(LOCK_TTL_SECONDS)],
   )
   return rows[0] ?? null
 }
 
-export async function finishStage(db: Db, id: string, next: Stage, note: { stage: string; ms: number; note?: string }): Promise<void> {
+/** A build may be retried this many times in total; after that it stays failed. */
+export const MAX_ATTEMPTS = 4
+
+/** Fenced by the lock token: a runner whose lock was taken over cannot write a stale result. */
+export async function finishStage(db: Db, lock: BuildRow, next: Stage, note: { stage: string; ms: number; note?: string }): Promise<boolean> {
   const status: BuildStatus = next === 'done' ? 'done' : 'waiting'
-  await db.query(
+  const rows = await db.query(
     `UPDATE builds SET stage = $2, status = $3, locked_at = NULL, error = NULL, updated_at = now(),
        log = log || $4::jsonb
-     WHERE id = $1`,
-    [id, next, status, JSON.stringify([{ ...note, at: new Date().toISOString() }])],
+     WHERE id = $1 AND stage = $5 AND locked_at = $6 RETURNING id`,
+    [lock.id, next, status, JSON.stringify([{ ...note, at: new Date().toISOString() }]), lock.stage, lock.locked_at],
   )
+  return rows.length > 0
 }
 
-export async function failStage(db: Db, id: string, error: string): Promise<void> {
-  await db.query(`UPDATE builds SET status = 'failed', locked_at = NULL, error = $2, updated_at = now() WHERE id = $1`, [id, error.slice(0, 1000)])
+export async function failStage(db: Db, lock: BuildRow, error: string, retryable: boolean): Promise<boolean> {
+  const rows = await db.query(`UPDATE builds SET status = 'failed', locked_at = NULL, error = $2, retryable = $3, updated_at = now() WHERE id = $1 AND stage = $4 AND locked_at = $5 RETURNING id`, [
+    lock.id,
+    error.slice(0, 1000),
+    retryable,
+    lock.stage,
+    lock.locked_at,
+  ])
+  return rows.length > 0
 }
 
 /** Fixed-window rate limit; true when the caller is within the limit. */

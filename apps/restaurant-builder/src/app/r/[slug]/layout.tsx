@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { loadRestaurant, siteVisible } from '@/lib/site-loader'
-import { fontsFor, googleFontsHref } from '@/lib/render/themes'
+import { cssVariables, fontsFor, googleFontsHref } from '@/lib/render/themes'
+import type { CSSProperties } from 'react'
 import '@/components/site/site.css'
 
 export const dynamic = 'force-dynamic'
@@ -12,14 +13,15 @@ export default async function SiteLayout({ children, params }: { children: React
   if (!r || !r.site_config) notFound()
   const cfg = r.site_config
   const fonts = fontsFor(cfg.brand.fontPair, cfg.lang)
+  const vars = cssVariables(cfg.brand, cfg.lang) as CSSProperties
   return (
-    <html lang={cfg.lang} dir={cfg.dir}>
+    <html lang={cfg.lang} dir={cfg.dir} style={vars}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={googleFontsHref(fonts)} />
       </head>
-      <body style={{ background: 'var(--bg, #fff)' }}>{children}</body>
+      <body style={{ background: 'var(--bg)', margin: 0 }}>{children}</body>
     </html>
   )
 }
