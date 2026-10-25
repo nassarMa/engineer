@@ -17,6 +17,7 @@ repo, tests, reviews, and ships.
 | `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser, graphify graph |
 | `scripts/` | Helper scripts: Vercel CLI wrapper, Playwright and graphify MCP launchers, graphify build, agent-skills sync |
 | `templates/` | Design doc and repo-notes templates |
+| `apps/` | Products built by the agent; each is a standalone project with its own README (`apps/restaurant-builder`: the AI Restaurant Website Builder) |
 | `docs/designs/` | Designs the agent has produced |
 | `docs/repos/` | What the agent knows about each connected repo |
 | `docs/connecting-tools.md` | How to add tools and repos |
