@@ -20,7 +20,7 @@ type View = {
 
 const VISIBLE: Exclude<Stage, 'done'>[] = ['extract', 'brand', 'design', 'qa', 'publish']
 /** Typical seconds per stage, used only to animate the bar smoothly. */
-const EXPECTED: Record<Exclude<Stage, 'done'>, number> = { extract: 14, brand: 6, design: 12, qa: 3, publish: 3 }
+const EXPECTED: Record<Exclude<Stage, 'done'>, number> = { extract: 35, brand: 6, design: 20, qa: 3, publish: 3 }
 const TOTAL = Object.values(EXPECTED).reduce((a, b) => a + b, 0)
 
 /**

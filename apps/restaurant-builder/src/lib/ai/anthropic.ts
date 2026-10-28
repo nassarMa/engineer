@@ -3,6 +3,27 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { aiModel } from '../env'
 import { brandSchema, contentSchema, designSchema, extractedMenuSchema, type Brand, type Content, type Design, type ExtractedMenu } from '../schemas'
+
+const menuTranslationSchema = contentSchema.pick({ categories: true })
+type SlimCategory = { id: string; name: string; items: { id: string; name: string; description: string | null }[] }
+
+/** Split categories into groups of at most `size` items, keeping categories whole. */
+export function chunkCategories(categories: SlimCategory[], size: number): SlimCategory[][] {
+  const out: SlimCategory[][] = []
+  let current: SlimCategory[] = []
+  let count = 0
+  for (const c of categories) {
+    if (current.length && count + c.items.length > size) {
+      out.push(current)
+      current = []
+      count = 0
+    }
+    current.push(c)
+    count += c.items.length
+  }
+  if (current.length) out.push(current)
+  return out
+}
 import { BRAND_SYSTEM, CONTENT_SYSTEM, DESIGN_SYSTEM, EXTRACT_SYSTEM, LANG_NAME, LOGO_SYSTEM } from './prompts'
 import { AiError, type AiProvider, type BrandContext, type ContentContext, type DesignContext, type ExtractContext, type MenuFile } from './types'
 
@@ -58,14 +79,20 @@ export function createAnthropicProvider(): AiProvider {
     name: 'anthropic',
 
     async extractMenu(files, ctx: ExtractContext): Promise<ExtractedMenu> {
-      const content: Anthropic.ContentBlockParam[] = [
-        ...fileBlocks(files),
-        {
-          type: 'text',
-          text: `Restaurant name given by the owner: ${JSON.stringify(ctx.name)}\nOwner description: ${JSON.stringify(ctx.description || '')}\n\nThe files above are the menu pages in order (page index starts at 0). Extract the menu.`,
-        },
-      ]
-      return parse({ system: EXTRACT_SYSTEM, content, schema: extractedMenuSchema, effort: 'high', maxTokens: 32000 })
+      // One request per file, all at once: a 3-page menu takes as long as one page, and each request stays small.
+      const pages = await Promise.all(
+        files.map((file, page) => {
+          const content: Anthropic.ContentBlockParam[] = [
+            ...fileBlocks([file]),
+            {
+              type: 'text',
+              text: `Restaurant name given by the owner: ${JSON.stringify(ctx.name)}\nOwner description: ${JSON.stringify(ctx.description || '')}\n\nThis is menu file ${page + 1} of ${files.length} (page index ${page}). Extract everything on it. Use category ids p${page + 1}-c1, p${page + 1}-c2, ... and item ids p${page + 1}-c1-1, p${page + 1}-c1-2, ...`,
+            },
+          ]
+          return parse({ system: EXTRACT_SYSTEM, content, schema: extractedMenuSchema, effort: 'medium', maxTokens: 16000 })
+        }),
+      )
+      return mergeExtractions(pages)
     },
 
     async brand(ctx: BrandContext): Promise<Brand> {
@@ -103,15 +130,34 @@ Compose the page.`,
     },
 
     async content(ctx: ContentContext): Promise<Content> {
-      const text = `Target website language: ${LANG_NAME[ctx.websiteLang]}
+      const header = `Target website language: ${LANG_NAME[ctx.websiteLang]}
 Restaurant name: ${JSON.stringify(ctx.name)}
 Owner description: ${JSON.stringify(ctx.description || '')} ${ctx.description ? '' : '(none given: about must be null)'}
 Cuisine: ${ctx.brand.cuisine}; personality: ${ctx.brand.personality}
 Address (for context only, do not rewrite): ${JSON.stringify(ctx.address)}
-Menu source language: ${ctx.menu.sourceLanguage}
-Extracted menu (ids, names, descriptions; prices withheld on purpose):
-${JSON.stringify(ctx.menu.categories.map((c) => ({ id: c.id, name: c.name, items: c.items.map((i) => ({ id: i.id, name: i.name, description: i.description })) })), null, 1)}`
-      return parse({ system: CONTENT_SYSTEM, content: [{ type: 'text', text }], schema: contentSchema, effort: 'medium', maxTokens: 32000 })
+Menu source language: ${ctx.menu.sourceLanguage}`
+      const slim = ctx.menu.categories.map((c) => ({ id: c.id, name: c.name, items: c.items.map((i) => ({ id: i.id, name: i.name, description: i.description })) }))
+      // Site copy and menu translation run side by side; the menu is translated in chunks so a long menu does not serialize into one slow request.
+      const chunks = chunkCategories(slim, 18)
+      const [meta, ...translated] = await Promise.all([
+        parse({
+          system: CONTENT_SYSTEM,
+          content: [{ type: 'text', text: `${header}\nMenu overview (names only, for tone): ${slim.map((c) => c.name).join(', ')}\n\nWrite the site copy and labels. The categories field must be an empty array; the menu is translated separately.` }],
+          schema: contentSchema,
+          effort: 'medium',
+          maxTokens: 4000,
+        }),
+        ...chunks.map((chunk) =>
+          parse({
+            system: CONTENT_SYSTEM,
+            content: [{ type: 'text', text: `${header}\n\nTranslate exactly these categories and items into ${LANG_NAME[ctx.websiteLang]}, keeping every id:\n${JSON.stringify(chunk, null, 1)}` }],
+            schema: menuTranslationSchema,
+            effort: 'low',
+            maxTokens: 16000,
+          }),
+        ),
+      ])
+      return { ...meta, categories: translated.flatMap((t) => t.categories) }
     },
 
     async judgeLogo(image): Promise<boolean> {
@@ -127,6 +173,41 @@ ${JSON.stringify(ctx.menu.categories.map((c) => ({ id: c.id, name: c.name, items
       })
       return out.usable
     },
+  }
+}
+
+/** Combine per-file extractions into one menu; ids are already page-prefixed, duplicates get a suffix. */
+export function mergeExtractions(pages: ExtractedMenu[]): ExtractedMenu {
+  if (pages.length === 1) return pages[0]
+  const seen = new Set<string>()
+  const unique = (id: string) => {
+    let out = id
+    for (let n = 2; seen.has(out); n++) out = `${id}-${n}`
+    seen.add(out)
+    return out
+  }
+  const order = { good: 0, partial: 1, unreadable: 2 } as const
+  const langs = new Set(pages.map((p) => p.sourceLanguage).filter((l) => l !== 'unknown'))
+  const logoPage = pages.findIndex((p) => p.branding.logoDetected && p.branding.logoBox)
+  return {
+    sourceLanguage: langs.size === 1 ? [...langs][0] : langs.size > 1 ? 'mixed' : 'unknown',
+    currency: pages.map((p) => p.currency).find((c) => c) ?? null,
+    categories: pages.flatMap((p, i) =>
+      p.categories.map((c) => {
+        const cid = unique(c.id.startsWith(`p${i + 1}-`) ? c.id : `p${i + 1}-${c.id}`)
+        return { ...c, id: cid, items: c.items.map((it) => ({ ...it, id: unique(it.id.startsWith(`p${i + 1}-`) ? it.id : `p${i + 1}-${it.id}`) })) }
+      }),
+    ),
+    branding: {
+      detectedName: pages.map((p) => p.branding.detectedName).find((n) => n) ?? null,
+      logoDetected: logoPage >= 0,
+      logoDescription: logoPage >= 0 ? pages[logoPage].branding.logoDescription : null,
+      colorsSeen: [...new Set(pages.flatMap((p) => p.branding.colorsSeen))].slice(0, 4),
+      logoBox: logoPage >= 0 ? { ...pages[logoPage].branding.logoBox!, page: logoPage } : null,
+    },
+    // The worst page decides: a partially readable page must still trigger the safe fallback rules.
+    readability: pages.reduce<ExtractedMenu['readability']>((worst, p) => (order[p.readability] > order[worst] ? p.readability : worst), 'good'),
+    notes: pages.flatMap((p, i) => p.notes.map((n) => `page ${i + 1}: ${n}`)),
   }
 }
 
