@@ -197,7 +197,7 @@ export type SiteConfig = z.infer<typeof siteConfigSchema>
 
 // ---------------------------------------------------------------- build state
 
-export const STAGES = ['extract', 'brand', 'design', 'content', 'qa', 'publish', 'done'] as const
+export const STAGES = ['extract', 'brand', 'design', 'qa', 'publish', 'done'] as const
 export type Stage = (typeof STAGES)[number]
 export const BUILD_STATUSES = ['waiting', 'running', 'failed', 'done'] as const
 export type BuildStatus = (typeof BUILD_STATUSES)[number]

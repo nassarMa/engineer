@@ -54,8 +54,8 @@ export type BuildRow = {
   lock_token: string | null
 }
 
-/** Locks older than this are considered dead. Must exceed the advance route's maxDuration (300 s). */
-export const LOCK_TTL_SECONDS = 420
+/** Locks older than this are considered dead. Must exceed the advance route's maxDuration (180 s). */
+export const LOCK_TTL_SECONDS = 200
 
 export function hashKey(key: string): string {
   return createHash('sha256').update(key).digest('hex')

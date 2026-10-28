@@ -1,5 +1,5 @@
 import type { Db } from '../db'
-import { failStage, finishStage, getBuild, getRestaurantById, lockBuild, MAX_ATTEMPTS, updateRestaurant, type BuildRow } from '../db/repo'
+import { failStage, finishStage, getBuild, getRestaurantById, lockBuild, LOCK_TTL_SECONDS, MAX_ATTEMPTS, updateRestaurant, type BuildRow } from '../db/repo'
 import { nextStage, type Stage } from '../schemas'
 import { AiError } from '../ai/types'
 import { STAGE_RUNNERS, StageError } from './stages'
@@ -11,6 +11,10 @@ export type BuildView = {
   attempt: number
   error: string | null
   retryable: boolean
+  /** Seconds the current stage has been running, or null when idle. */
+  runningFor: number | null
+  /** After this many seconds a running stage is considered dead and can be resumed. */
+  staleAfter: number
   slug: string
   publishedUrl: string | null
   verified: boolean
@@ -29,6 +33,8 @@ export async function viewBuild(db: Db, buildId: string): Promise<BuildView | nu
     attempt: build.attempt,
     error: build.error,
     retryable: build.retryable && build.attempt < MAX_ATTEMPTS,
+    runningFor: build.status === 'running' && build.locked_at ? Math.max(0, Math.round((Date.now() - new Date(build.locked_at).getTime()) / 1000)) : null,
+    staleAfter: LOCK_TTL_SECONDS,
     slug: restaurant.slug,
     publishedUrl: restaurant.status === 'published' && restaurant.verified_at ? restaurant.published_url : null,
     verified: Boolean(restaurant.verified_at),

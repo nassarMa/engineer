@@ -110,7 +110,7 @@ export async function runBrand(ctx: StageContext): Promise<string> {
   return `${brand.preset} / ${brand.fontPair} / ${brand.accent}`
 }
 
-/** Stage 3: design director (sees the photos). */
+/** Stage 3: design director (sees the photos) and content writer, run side by side; both only need the menu and brand. */
 export async function runDesign(ctx: StageContext): Promise<string> {
   const { db, restaurant } = ctx
   if (!restaurant.extracted_menu || !restaurant.brand) throw new StageError('Earlier stages are missing.', false)
@@ -120,37 +120,32 @@ export async function runDesign(ctx: StageContext): Promise<string> {
     const small = await thumbnail(await readUpload(u), 512)
     photos.push({ id: u.id, bytes: small.bytes, mime: small.mime, width: u.width ?? small.width, height: u.height ?? small.height })
   }
-  const design = designSchema.parse(
-    await getAiProvider().design({
-      name: restaurant.name,
-      brand: restaurant.brand,
-      menu: restaurant.extracted_menu,
-      photos,
-      hasAbout: restaurant.description.trim().length > 0,
-      websiteLang: restaurant.website_lang,
-    }),
-  )
-  await updateRestaurant(db, restaurant.id, { design })
-  return `${design.heroLayout} / ${design.menuLayout} / ${design.sections.join(',')}`
-}
-
-/** Stage 4: content and localization. */
-export async function runContent(ctx: StageContext): Promise<string> {
-  const { db, restaurant } = ctx
-  if (!restaurant.extracted_menu || !restaurant.brand) throw new StageError('Earlier stages are missing.', false)
-  const content = contentSchema.parse(
-    await getAiProvider().content({
-      name: restaurant.name,
-      description: restaurant.description,
-      menu: restaurant.extracted_menu,
-      brand: restaurant.brand,
-      websiteLang: restaurant.website_lang,
-      address: restaurant.address,
-      phone: restaurant.phone,
-    }),
-  )
-  await updateRestaurant(db, restaurant.id, { content })
-  return `headline "${content.headline}"`
+  const ai = getAiProvider()
+  const [design, content] = await Promise.all([
+    ai
+      .design({
+        name: restaurant.name,
+        brand: restaurant.brand,
+        menu: restaurant.extracted_menu,
+        photos,
+        hasAbout: restaurant.description.trim().length > 0,
+        websiteLang: restaurant.website_lang,
+      })
+      .then((d) => designSchema.parse(d)),
+    ai
+      .content({
+        name: restaurant.name,
+        description: restaurant.description,
+        menu: restaurant.extracted_menu,
+        brand: restaurant.brand,
+        websiteLang: restaurant.website_lang,
+        address: restaurant.address,
+        phone: restaurant.phone,
+      })
+      .then((c) => contentSchema.parse(c)),
+  ])
+  await updateRestaurant(db, restaurant.id, { design, content })
+  return `${design.heroLayout} / ${design.menuLayout} / ${design.sections.join(',')}; headline "${content.headline}"`
 }
 
 export type QaReport = { attempts: { issues: Issue[] }[]; renderCheck: { ok: boolean; detail: string } | null; passed: boolean }
@@ -258,7 +253,6 @@ export const STAGE_RUNNERS: Record<Exclude<Stage, 'done'>, (ctx: StageContext) =
   extract: runExtract,
   brand: runBrand,
   design: runDesign,
-  content: runContent,
   qa: runQa,
   publish: runPublish,
 }

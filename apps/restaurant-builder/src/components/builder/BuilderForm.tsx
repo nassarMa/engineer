@@ -59,8 +59,23 @@ export function BuilderForm({ locale, t }: { locale: Locale; t: Dictionary }) {
         }),
       })
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null
+        const body = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string; issues?: { path: string; message: string }[] } } | null
         const code = body?.error?.code
+        if (code === 'invalid' && body?.error?.issues?.length) {
+          // Point at the field the server rejected instead of a vague failure.
+          const fieldErrors: Errors = {}
+          for (const issue of body.error.issues) {
+            const root = issue.path.split('.')[0]
+            if (root === 'name' || root === 'address') fieldErrors[root] = t.errorInvalidField
+            else if (root === 'phone') fieldErrors.phone = t.errorPhone
+            else if (root === 'menuUploadIds') fieldErrors.menu = t.errorMenu
+            else fieldErrors.form = t.errorInvalidField
+          }
+          setErrors(fieldErrors)
+          setSubmitting(false)
+          document.querySelector('[data-error="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          return
+        }
         setErrors({ form: code === 'rate_limited' ? t.errorTooMany : code === 'setup_incomplete' || code === 'storage_unconfigured' ? `${t.setupMissing} ${body?.error?.message ?? ''}` : t.errorGeneric })
         setSubmitting(false)
         return

@@ -5,7 +5,11 @@ describe('dictionaries', () => {
   it('cover every key in every language with non-empty text', () => {
     const keys = Object.keys(DICTIONARIES.en)
     for (const l of LOCALES) {
-      for (const k of keys) expect((DICTIONARIES[l] as Record<string, string>)[k]?.trim(), `${l}.${k}`).toBeTruthy()
+      for (const k of keys) {
+        const v = (DICTIONARIES[l] as unknown as Record<string, string | string[]>)[k]
+        if (Array.isArray(v)) expect(v.length, `${l}.${k}`).toBeGreaterThan(0)
+        else expect(v?.trim(), `${l}.${k}`).toBeTruthy()
+      }
     }
   })
   it('uses the right script per language', () => {

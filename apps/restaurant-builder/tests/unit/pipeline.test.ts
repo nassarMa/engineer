@@ -36,7 +36,7 @@ describe('end-to-end pipeline (mock AI, embedded Postgres, local storage)', () =
     expect(cfg.design.sections).toEqual(['hero', 'about', 'menu', 'gallery', 'contact'])
     expect(cfg.menu.mode).toBe('structured')
     expect(cfg.menu.categories.flatMap((c) => c.items.map((i) => i.price))).toEqual(['25', '28', '22', '68', '75', '120', '15', '8'])
-    expect(view.log.map((l) => l.stage)).toEqual(['extract', 'brand', 'design', 'content', 'qa', 'publish'])
+    expect(view.log.map((l) => l.stage)).toEqual(['extract', 'brand', 'design', 'qa', 'publish'])
   })
 
   it('builds an Arabic café site (RTL) from a builder used in Hebrew', async () => {
