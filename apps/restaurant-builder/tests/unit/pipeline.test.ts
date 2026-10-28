@@ -100,9 +100,11 @@ describe('end-to-end pipeline (mock AI, embedded Postgres, local storage)', () =
   })
 
   it('reserves distinct slugs for restaurants with the same name', async () => {
-    const one = await start(db, { name: 'Same Name' })
-    const two = await start(db, { name: 'Same Name' })
-    expect(one.restaurant.slug).toBe('same-name')
-    expect(two.restaurant.slug).toMatch(/^same-name-[a-z0-9]{3}$/)
+    const name = `Same Name ${Date.now().toString(36)}`
+    const base = name.toLowerCase().replace(/ /g, '-')
+    const one = await start(db, { name })
+    const two = await start(db, { name })
+    expect(one.restaurant.slug).toBe(base)
+    expect(two.restaurant.slug).toMatch(new RegExp(`^${base}-[a-z0-9]{3}$`))
   })
 })

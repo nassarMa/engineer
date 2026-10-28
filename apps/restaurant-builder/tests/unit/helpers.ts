@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Site } from '@/components/site/Site'
-import { openTestDb, setDb, type Db } from '@/lib/db'
+import { openDatabaseUrl, openTestDb, setDb, type Db } from '@/lib/db'
 import { createRestaurant, insertUpload, type UploadRow } from '@/lib/db/repo'
 import { DICTIONARIES } from '@/lib/i18n'
 import { getRestaurantBySlug } from '@/lib/db/repo'
@@ -20,7 +20,8 @@ export async function setupEnv(): Promise<Db> {
   delete process.env.PLATFORM_DOMAIN
   delete process.env.BLOB_READ_WRITE_TOKEN
   process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rb-test-'))
-  const db = await openTestDb()
+  // TEST_DATABASE_URL runs the suite against a real Postgres (the production driver); default is embedded PGlite.
+  const db = process.env.TEST_DATABASE_URL ? await openDatabaseUrl(process.env.TEST_DATABASE_URL) : await openTestDb()
   setDb(db)
   return db
 }

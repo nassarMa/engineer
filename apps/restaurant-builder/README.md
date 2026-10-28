@@ -47,6 +47,7 @@ Claude.
 ```bash
 pnpm check          # lint + typecheck + unit tests + production build
 pnpm test:e2e       # Playwright, phone viewport, full journey in all three languages
+TEST_DATABASE_URL=postgres://... pnpm test   # same unit suite on a real Postgres (the production driver)
 ```
 
 ## Going live (what the owner of the platform must configure)

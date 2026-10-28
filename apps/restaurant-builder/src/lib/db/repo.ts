@@ -51,6 +51,7 @@ export type BuildRow = {
   log: { stage: string; at: string; ms: number; note?: string }[]
   retryable: boolean
   locked_at: string | null
+  lock_token: string | null
 }
 
 /** Locks older than this are considered dead. Must exceed the advance route's maxDuration (300 s). */
@@ -75,7 +76,8 @@ export async function insertUpload(db: Db, row: Omit<UploadRow, 'id'> & { ip: st
 
 export async function getUploads(db: Db, ids: string[]): Promise<UploadRow[]> {
   if (ids.length === 0) return []
-  const rows = await db.query<UploadRow>(`SELECT * FROM uploads WHERE id = ANY($1::text[])`, [ids])
+  // Ids are UUIDs (no commas); a joined string avoids driver-specific array encoding.
+  const rows = await db.query<UploadRow>(`SELECT * FROM uploads WHERE id = ANY(string_to_array($1::text, ','))`, [ids.join(',')])
   // keep caller order
   const byId = new Map(rows.map((r) => [r.id, r]))
   return ids.map((id) => byId.get(id)).filter((r): r is UploadRow => Boolean(r))
@@ -104,7 +106,7 @@ export async function createRestaurant(db: Db, input: RestaurantInput): Promise<
       await db.query(
         `INSERT INTO restaurants (id, slug, name, phone, address, description, website_lang, builder_locale, logo_mode, logo_upload_id, menu_upload_ids, photo_upload_ids, owner_key_hash, preview_token, status)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'building')`,
-        [id, slug, input.name, input.phone, input.address, input.description, input.websiteLang, input.locale, input.logoMode, input.logoUploadId, JSON.stringify(input.menuUploadIds), JSON.stringify(input.photoUploadIds), hashKey(ownerKey), previewToken],
+        [id, slug, input.name, input.phone, input.address, input.description, input.websiteLang, input.locale, input.logoMode, input.logoUploadId, input.menuUploadIds, input.photoUploadIds, hashKey(ownerKey), previewToken],
       )
       break
     } catch (e) {
@@ -118,14 +120,27 @@ export async function createRestaurant(db: Db, input: RestaurantInput): Promise<
   return { restaurant, build, ownerKey }
 }
 
+const RESTAURANT_JSON = ['menu_upload_ids', 'photo_upload_ids', 'extracted_menu', 'brand', 'design', 'content', 'site_config', 'qa_report'] as const
+const BUILD_JSON = ['log'] as const
+
+/** JSONB may come back parsed or as text depending on the driver and query path; make it always parsed. */
+function parseJson<T extends object>(row: T | undefined, keys: readonly (keyof T)[]): T | null {
+  if (!row) return null
+  for (const k of keys) {
+    const v = row[k]
+    if (typeof v === 'string') (row as Record<keyof T, unknown>)[k] = JSON.parse(v)
+  }
+  return row
+}
+
 export async function getRestaurantById(db: Db, id: string): Promise<RestaurantRow | null> {
   const rows = await db.query<RestaurantRow>(`SELECT * FROM restaurants WHERE id = $1`, [id])
-  return rows[0] ?? null
+  return parseJson(rows[0], RESTAURANT_JSON)
 }
 
 export async function getRestaurantBySlug(db: Db, slug: string): Promise<RestaurantRow | null> {
   const rows = await db.query<RestaurantRow>(`SELECT * FROM restaurants WHERE slug = $1`, [slug])
-  return rows[0] ?? null
+  return parseJson(rows[0], RESTAURANT_JSON)
 }
 
 export async function updateRestaurant(db: Db, id: string, patch: Partial<Record<keyof RestaurantRow, unknown>>): Promise<void> {
@@ -133,10 +148,7 @@ export async function updateRestaurant(db: Db, id: string, patch: Partial<Record
   if (keys.length === 0) return
   for (const k of keys) if (!/^[a-z_]+$/.test(k)) throw new Error(`bad column ${k}`)
   const sets = keys.map((k, i) => `${k} = $${i + 2}`)
-  const values = keys.map((k) => {
-    const v = (patch as Record<string, unknown>)[k]
-    return v !== null && typeof v === 'object' ? JSON.stringify(v) : v
-  })
+  const values = keys.map((k) => (patch as Record<string, unknown>)[k])
   await db.query(`UPDATE restaurants SET ${sets.join(', ')}, updated_at = now() WHERE id = $1`, [id, ...values])
 }
 
@@ -153,7 +165,7 @@ export function verifyOwnerKey(restaurant: RestaurantRow, key: string | null | u
 
 export async function getBuild(db: Db, id: string): Promise<BuildRow | null> {
   const rows = await db.query<BuildRow>(`SELECT * FROM builds WHERE id = $1`, [id])
-  return rows[0] ?? null
+  return parseJson(rows[0], BUILD_JSON)
 }
 
 /**
@@ -163,16 +175,16 @@ export async function getBuild(db: Db, id: string): Promise<BuildRow | null> {
  */
 export async function lockBuild(db: Db, id: string, retry: boolean): Promise<BuildRow | null> {
   const rows = await db.query<BuildRow>(
-    `UPDATE builds SET locked_at = clock_timestamp(), status = 'running', updated_at = now(),
+    `UPDATE builds SET locked_at = clock_timestamp(), lock_token = $5, status = 'running', updated_at = now(),
        error = CASE WHEN $2 THEN NULL ELSE error END,
        attempt = CASE WHEN $2 OR status = 'running' THEN attempt + 1 ELSE attempt END
      WHERE id = $1
        AND (locked_at IS NULL OR locked_at < now() - ($4 || ' seconds')::interval)
        AND (status = 'waiting' OR ($2 AND status = 'failed' AND retryable AND attempt < $3) OR (status = 'running' AND attempt < $3))
      RETURNING *`,
-    [id, retry, MAX_ATTEMPTS, String(LOCK_TTL_SECONDS)],
+    [id, retry, MAX_ATTEMPTS, String(LOCK_TTL_SECONDS), randomUUID()],
   )
-  return rows[0] ?? null
+  return parseJson(rows[0], BUILD_JSON)
 }
 
 /** A build may be retried this many times in total; after that it stays failed. */
@@ -184,19 +196,19 @@ export async function finishStage(db: Db, lock: BuildRow, next: Stage, note: { s
   const rows = await db.query(
     `UPDATE builds SET stage = $2, status = $3, locked_at = NULL, error = NULL, updated_at = now(),
        log = log || $4::jsonb
-     WHERE id = $1 AND stage = $5 AND locked_at = $6 RETURNING id`,
-    [lock.id, next, status, JSON.stringify([{ ...note, at: new Date().toISOString() }]), lock.stage, lock.locked_at],
+     WHERE id = $1 AND stage = $5 AND lock_token = $6 RETURNING id`,
+    [lock.id, next, status, [{ ...note, at: new Date().toISOString() }], lock.stage, lock.lock_token],
   )
   return rows.length > 0
 }
 
 export async function failStage(db: Db, lock: BuildRow, error: string, retryable: boolean): Promise<boolean> {
-  const rows = await db.query(`UPDATE builds SET status = 'failed', locked_at = NULL, error = $2, retryable = $3, updated_at = now() WHERE id = $1 AND stage = $4 AND locked_at = $5 RETURNING id`, [
+  const rows = await db.query(`UPDATE builds SET status = 'failed', locked_at = NULL, error = $2, retryable = $3, updated_at = now() WHERE id = $1 AND stage = $4 AND lock_token = $5 RETURNING id`, [
     lock.id,
     error.slice(0, 1000),
     retryable,
     lock.stage,
-    lock.locked_at,
+    lock.lock_token,
   ])
   return rows.length > 0
 }

@@ -61,12 +61,14 @@ const MIGRATIONS = [
      error TEXT,
      log JSONB NOT NULL DEFAULT '[]',
      retryable BOOLEAN NOT NULL DEFAULT true,
+     lock_token TEXT,
      locked_at TIMESTAMPTZ,
      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   // Additive changes for databases created by earlier versions.
   `ALTER TABLE builds ADD COLUMN IF NOT EXISTS retryable BOOLEAN NOT NULL DEFAULT true`,
+  `ALTER TABLE builds ADD COLUMN IF NOT EXISTS lock_token TEXT`,
   `CREATE TABLE IF NOT EXISTS rate_limits (
      key TEXT PRIMARY KEY,
      window_start TIMESTAMPTZ NOT NULL,
@@ -84,11 +86,17 @@ async function migrate(db: Db, serialize: boolean): Promise<void> {
   }
 }
 
+/** A Postgres connection for a given URL (tests against a real server). */
+export async function openDatabaseUrl(url: string): Promise<Db> {
+  return openPostgres(url)
+}
+
 async function openPostgres(url: string): Promise<Db> {
   const { default: postgres } = await import('postgres')
   const sql = postgres(url, { max: 5, prepare: false, idle_timeout: 20 })
   const db: Db = {
     async query<T>(text: string, params: unknown[] = []) {
+      // postgres.js serializes objects for jsonb itself; a pre-stringified value would be double-encoded.
       return (await sql.unsafe(text, params as never[])) as unknown as T[]
     },
     async close() {
@@ -108,7 +116,8 @@ async function openPglite(dir: string | undefined): Promise<Db> {
   const pg = dir ? new PGlite(dir) : new PGlite()
   const db: Db = {
     async query<T>(text: string, params: unknown[] = []) {
-      const res = await pg.query<T>(text, params)
+      // JSON values are passed as objects; PGlite wants them as text for jsonb columns.
+      const res = await pg.query<T>(text, params.map((p) => (p !== null && typeof p === 'object' ? JSON.stringify(p) : p)))
       return res.rows
     },
     async close() {
