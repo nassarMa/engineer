@@ -1,6 +1,6 @@
 # AI Restaurant Website Builder
 
-Status: Implemented (apps/restaurant-builder). Needs credentials to go live; see
+Status: Implemented. Moved to its own repo, nassarMa/bayt-digital-dashboard (to be renamed). Needs credentials to go live; see
 "Going live" below.
 
 ## Problem
