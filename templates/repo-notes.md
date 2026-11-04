@@ -23,3 +23,10 @@ Style, error handling, logging, tests, commits, PRs.
 
 ## Gotchas
 Things that surprised you or broke.
+
+## Recommended automations
+From the `claude-automation-recommender` survey (see `onboard-repo`).
+
+| Type | Suggestion | Signal in the repo | Status |
+|------|-----------|--------------------|--------|
+| | | | |

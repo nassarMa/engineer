@@ -13,6 +13,7 @@ Routing table. Try the first tool; on failure, move down the chain.
 | Read a URL as Markdown | Jina Reader (`curl -s https://r.jina.ai/URL`) → Exa `web_fetch_exa` → `WebFetch` | [web](references/web.md) |
 | GitHub repos / code / issues / PRs | GitHub MCP tools → `gh` CLI (public, no auth) | [dev](references/dev.md) |
 | Video tutorial / talk transcript | `yt-dlp` subtitles | [video](references/video.md) |
+| "Watch this" reel / short / clip (Instagram, TikTok, X) | `scripts/watch-video.sh` (caption + local Whisper transcript + frames) → user uploads the file | [video](references/video.md) |
 | Blog / release feed | `feedparser` or `curl` + parse | [web](references/web.md) |
 | Developer community opinion | V2EX API (zero config); Reddit/Twitter/HN via Exa search | [social](references/social.md) |
 
@@ -51,6 +52,6 @@ curl -s "https://www.v2ex.com/api/topics/hot.json" -H "User-Agent: engineer-agen
 ## Full Agent Reach (optional, desktop only)
 
 For social platforms that need a logged-in browser (Twitter/X, Reddit,
-XiaoHongShu, Facebook, Instagram), install the upstream project on a
+XiaoHongShu, Facebook, and Instagram beyond single public posts), install the upstream project on a
 desktop machine; see `docs/repos/panniantong-agent-reach.md`. Don't do
 this in a cloud container.
