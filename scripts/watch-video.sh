@@ -12,7 +12,8 @@
 #   WATCH_LANG          speech language for Whisper (default: auto-detect),
 #                       e.g. ar, en
 #   WATCH_MODEL         faster-whisper model (default: small)
-#   WATCH_FRAME_EVERY   seconds between frames on the contact sheet (default 3)
+#   WATCH_FRAME_EVERY   seconds between frames (default: spread 24 frames,
+#                       one contact sheet, over the whole video; min 1)
 #   WATCH_VENV          venv holding yt-dlp + faster-whisper (default:
 #                       $TMPDIR/watch-video-venv). Created on first run; this
 #                       installs into that throwaway venv only, never system-wide.
@@ -27,7 +28,6 @@ URL="${1:?usage: scripts/watch-video.sh <url> [out-dir]}"
 TMP="${TMPDIR:-/tmp}"
 VENV="${WATCH_VENV:-$TMP/watch-video-venv}"
 MODEL="${WATCH_MODEL:-small}"
-EVERY="${WATCH_FRAME_EVERY:-3}"
 YTDLP_VERSION="2026.10.26"
 WHISPER_VERSION="1.2.1"
 
@@ -88,6 +88,8 @@ PY
 # Frames and a contact sheet. Read sheet.jpg first, then the single frames
 # (or re-extract one at full size with ffmpeg -ss <t>) to read small text
 # such as GitHub repo names in screenshots.
+DUR="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/video.mp4")"
+EVERY="${WATCH_FRAME_EVERY:-$(awk -v d="$DUR" 'BEGIN { e = int(d / 24 + 0.999); print (e < 1 ? 1 : e) }')}"
 ffmpeg -v error -y -i "$OUT/video.mp4" -vf "fps=1/$EVERY,scale=480:-1" "$OUT/frames/f%03d.jpg"
 ffmpeg -v error -y -pattern_type glob -i "$OUT/frames/f*.jpg" -vf "tile=6x4" -frames:v 1 "$OUT/sheet.jpg"
 
