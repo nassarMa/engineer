@@ -10,15 +10,16 @@ repo, tests, reviews, and ships.
 |------|------------|
 | `CLAUDE.md` | The agent's operating manual: process and engineering standards |
 | `.claude/agents/` | Specialists: `architect`, `implementer`, `researcher`, plus `code-reviewer`, `test-engineer`, `security-auditor`, `web-performance-auditor` from agent-skills |
-| `.claude/skills/` | Our workflows (`design-solution`, `implement-task`, `onboard-repo`, `research`, `codebase-graph`, `deploy-vercel`) plus the 25 engineering-process skills vendored from [agent-skills](https://github.com/addyosmani/agent-skills) |
+| `.claude/skills/` | Our workflows (`design-solution`, `implement-task`, `onboard-repo`, `research`, `codebase-graph`, `deploy-vercel`, `skill-retro`) plus the 25 engineering-process skills vendored from [agent-skills](https://github.com/addyosmani/agent-skills) and `claude-automation-recommender` from Anthropic's [claude-code-setup](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/claude-code-setup) plugin |
 | `.claude/commands/` | Lifecycle commands from agent-skills: `/spec` `/plan` `/build` `/test` `/constraints` `/review` `/webperf` `/code-simplify` `/ship` |
 | `.claude/references/` | Shared checklists (definition of done, testing, security, performance, accessibility, observability, orchestration) |
 | `.claude/settings.json` | Permission allow/deny rules |
 | `.mcp.json` | External tools (MCP servers): Exa search, Playwright browser, graphify graph |
-| `scripts/` | Helper scripts: Vercel CLI wrapper, Playwright and graphify MCP launchers, graphify build, agent-skills sync |
+| `scripts/` | Helper scripts: Vercel CLI wrapper, Playwright and graphify MCP launchers, graphify build, video watcher, Headroom launcher, skill syncs |
 | `templates/` | Design doc and repo-notes templates |
 | `docs/designs/` | Designs the agent has produced |
 | `docs/repos/` | What the agent knows about each connected repo |
+| `docs/skill-observations/` | What `skill-retro` learned from sessions, pending or applied |
 | `docs/connecting-tools.md` | How to add tools and repos |
 
 ## Using it
