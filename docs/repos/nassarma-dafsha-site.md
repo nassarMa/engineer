@@ -15,9 +15,9 @@
 | Lint | `pnpm lint` | |
 | Typecheck | `pnpm typecheck` | A stale `.next/dev/types` breaks it after moving a route; `rm -rf .next` |
 | Test | `pnpm test` | Unit only, no database |
-| Integration | `TEST_DATABASE_URL=…/dafsha_test pnpm test:integration` | Real Postgres; refuses any database not named `*_test`; not part of `pnpm ci` |
+| Integration | `TEST_DATABASE_URL=…/dafsha_test pnpm test:integration` | Real Postgres; refuses any database not named `*_test`; not part of `pnpm run ci` |
 | E2E | `set -a; . ./.env.local; set +a; pnpm test:e2e` | Needs seeded dev DB and `e2e-admin@dafsha.test` in `ADMIN_EMAILS` |
-| Everything | `pnpm ci` | typecheck + lint + unit + build |
+| Everything | `pnpm run ci` | typecheck + lint + unit + build. Plain `pnpm ci` is pnpm 11's clean install and skips the script |
 | Run locally | `pnpm db:migrate && pnpm db:seed && pnpm dev` | `.env.local` with `DATABASE_URL`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`, `REPORT_IP_SALT`, `E2E_OTP_FILE` |
 | Market scan | `pnpm market:scan [jobs] [news] [analyze]` | Real network requests to ~150 job boards and 6 feeds, about 20 s |
 
@@ -25,7 +25,13 @@ Local Postgres in a cloud session: `service postgresql start`, then create a `da
 `dafsha_dev` and `dafsha_test` databases.
 
 ## Architecture
-- `src/app` routes; `src/lib/{auth,db,jobs,admin,reports,market}` domain code; `src/components` UI.
+- `src/app` routes; `src/lib/{auth,db,jobs,admin,reports,market,stats}` domain code; `src/components` UI.
+- `/admin` is the owner's overview (attention list, traffic, AI costs): queries in `src/lib/admin/overview.ts`.
+  Traffic is counted in-house (`src/lib/stats`, `POST /api/t`, tables `site_counters` and `site_visits`), with no
+  cookies; it counts only when `VERCEL_ENV` is `production` or unset.
+- AI is reached with `AI_GATEWAY_API_KEY` (Vercel AI Gateway, ids like `anthropic/claude-haiku-5.5`) or
+  `ANTHROPIC_API_KEY`. The gateway answers 403 `customer_verification_required` until the Vercel team has a
+  payment card on file.
 - Mutations are Server Actions that start with `requireUser()` / `requireAdmin()` (`src/lib/auth/session.ts`).
 - Market Pulse (`src/lib/market`): provider adapters (Greenhouse, Lever, Ashby, SmartRecruiters, Comeet) →
   daily snapshot per company → diff → one card per company; RSS → fixed-rule prefilter → AI analysis behind
@@ -37,10 +43,15 @@ Local Postgres in a cloud session: `service postgresql start`, then create a `da
 - The repo's `CLAUDE.md` holds hard rules: Arabic-first RTL with logical CSS properties, colours only from the
   named utilities in `globals.css`, no invented data, `[TEST]` seed data only.
 - `AGENTS.md`: this Next.js version differs from older ones; read `node_modules/next/dist/docs/` before using an API.
-- Commits: imperative subject, body explains why. No CI workflow in the repo; `pnpm ci` is the gate.
+- Commits: imperative subject, body explains why. No CI workflow in the repo; `pnpm run ci` is the gate.
 - Migrations are generated (`pnpm db:generate`) and applied by hand (`pnpm db:migrate`); Vercel does not run them.
 
 ## Gotchas
+- In cloud sessions the permission layer refuses `vercel env add` (secret-store write) and `vercel env pull`
+  (reads the production database URL). Plan for the owner to add env vars and run `pnpm db:migrate` against
+  production; do not route around it, for example by migrating inside the Vercel build.
+- Playwright's "Desktop Chrome" device has a normal browser user agent, so e2e visits are counted as traffic in
+  the dev database; plain headless Chromium is treated as a bot and is not.
 - A layout's auth check is not enough in this Next.js version: a request can ask for the page segment alone and
   skip the layout. Every page under `/admin` must call `requireAdmin()` itself (a unit test enforces it).
 - `zodOutputFormat` from the Anthropic SDK moves `enum`s into field descriptions, so the API does not enforce
