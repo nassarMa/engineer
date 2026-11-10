@@ -59,5 +59,10 @@ Local Postgres in a cloud session: `service postgresql start`, then create a `da
   client-side navigation from `/jobs`.
 - Mixed Arabic and Latin headlines: do not wrap them in `<bdi dir="auto">`; a leading Latin company name flips the
   whole line to left-to-right.
+- Google News search feeds (`news.google.com/rss/search`) state in the feed itself that any use outside a personal
+  feed reader is prohibited, and robots.txt disallows `/rss`. Do not build on them. Layoffs.co.il, by contrast,
+  licenses its factual dataset under CC BY 4.0 (terms 9.4); it is read by the `tracker` source kind.
+- When parsing third-party HTML with patterns, test against the raw page, not a cleaned-up sample: attribute order
+  (`class` before `href`) broke the first version of the tracker parser, which then correctly imported nothing.
 - Several Israeli publishers restrict feed reuse (Geektime forbids passing content to AI systems, Globes requires
   written consent, TheMarker bans bots). Check terms before enabling a feed.
