@@ -1,0 +1,3 @@
+# Vendored by scripts/sync-official-plugin-skills.sh from https://github.com/anthropics/claude-plugins-official @ fa4eb543
+# Plugins: claude-code-setup. Do not edit these paths by hand; re-run the script.
+.claude/skills/claude-automation-recommender

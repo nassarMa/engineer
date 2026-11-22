@@ -67,6 +67,21 @@ reach for it.
 - The claude.ai Vercel connector is read-only and optional; connect it in
   Settings → Connectors if you want deployment status in chat.
 
+### Add-ons evaluated, not wired in by default
+
+Full reasoning in `docs/designs/2026-11-04-claude-code-addons.md`.
+
+- **Headroom** (opt-in, desktop only): start Claude Code with
+  `scripts/headroom-claude.sh` to compress tool output, logs and JSON through
+  a local proxy. Install once with
+  `uv tool install --python 3.13 "headroom-ai[all]==0.42.0"`. Best with an
+  API key and in log- or JSON-heavy sessions; undo leftovers with
+  `headroom unwrap claude`. Not usable in cloud sessions.
+- **OmniRoute**: don't use. It routes code to third-party providers and
+  spoofs Claude Code to stretch a subscription, against Anthropic's terms.
+- **Claude-Mem**: not in this repo. Our memory is CLAUDE.md, `docs/repos/`,
+  `docs/designs/` and `docs/skill-observations/`, all reviewed and in git.
+
 ## Adding a repository
 
 1. Give the agent access (on claude.ai: add the repo to the session or

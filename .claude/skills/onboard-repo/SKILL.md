@@ -18,5 +18,16 @@ description: Learn a newly connected repository and write a knowledge file for i
    (see the `codebase-graph` skill). Fall back to Grep/Read if it isn't.
 4. Note conventions: code style, error handling, logging, test layout, branch
    and commit conventions, PR template.
-5. Write `docs/repos/<owner>-<repo>.md` from `templates/repo-notes.md` and add
+5. Survey Claude Code automations for the target repo with the
+   `claude-automation-recommender` skill (vendored from Anthropic's
+   claude-code-setup plugin). Run its analysis with the target repo as the
+   working directory, not this one. Before recording a suggestion, drop
+   whatever this engineer already covers: Playwright and Exa MCP, Vercel,
+   the `code-reviewer`, `security-auditor` and `test-engineer` agents, and
+   the vendored engineering skills. Its web searches may name libraries and
+   frameworks, never the repo's code, private URLs or secrets. Record each
+   remaining suggestion with its signal and a status (adopted, rejected and
+   why, or proposed). Apply nothing yourself: a hook, MCP server or skill
+   goes into the target repo only after the user agrees.
+6. Write `docs/repos/<owner>-<repo>.md` from `templates/repo-notes.md` and add
    a line for it in `docs/repos/README.md`.

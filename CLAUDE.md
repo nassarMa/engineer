@@ -25,6 +25,14 @@ fast, clever work.
    - Unfamiliar codebase, or a "what calls X / how do A and B connect"
      question: use the `codebase-graph` skill (graphify) before grepping.
    - Deploying or debugging a deployment: use the `deploy-vercel` skill.
+   - The user shares a reel, short or clip to learn from: `research` skill,
+     video route (`scripts/watch-video.sh`), then research every tool it
+     names from primary sources before adopting anything.
+   - Setting up Claude Code automations for a repo: the
+     `claude-automation-recommender` skill (run by `onboard-repo`).
+   - The session had corrections or friction, or the user says "retro" /
+     "learn from this": the `skill-retro` skill. Skills change only through
+     a reviewed diff, never silently.
 3. **Use the specialists** in `.claude/agents/` for focused work:
    - `architect` – designs systems, compares approaches, writes design docs.
    - `implementer` – writes production code that matches the target repo.
@@ -89,5 +97,8 @@ fast, clever work.
   `browser_take_screenshot`, console and network tools). Use it to verify
   web UI changes in a real browser and to reproduce frontend bugs; never
   enter real credentials through it.
+- Token-saving and memory add-ons: Headroom is opt-in on a desktop
+  (`scripts/headroom-claude.sh`). Don't install OmniRoute or Claude-Mem
+  here; see `docs/designs/2026-11-04-claude-code-addons.md`.
 - Repos the agent works on are listed in `docs/repos/README.md`, with one
   knowledge file per repo.
