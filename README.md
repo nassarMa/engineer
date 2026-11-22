@@ -20,6 +20,7 @@ repo, tests, reviews, and ships.
 | `docs/designs/` | Designs the agent has produced |
 | `docs/repos/` | What the agent knows about each connected repo |
 | `docs/connecting-tools.md` | How to add tools and repos |
+| `apps/brain-dashboard/` | Live dashboard of this repo (contents, route, map of links, health): https://engineer-brain-chi.vercel.app |
 
 ## Using it
 
