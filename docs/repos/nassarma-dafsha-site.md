@@ -13,8 +13,10 @@
   `main` from 4 Nov (founders section), so `/market` is not live.
 - On 25 Nov the branch passed typecheck, lint, 257 unit tests, 55 integration tests and `pnpm build` against a
   local Postgres with the migration applied.
-- Blockers for launch are the owner's: apply `drizzle/0001_market_pulse.sql` to production, add `CRON_SECRET`
-  in Vercel, and fix the AI connection (gateway 403 until a card is on the Vercel team, or set `ANTHROPIC_API_KEY`).
+- 25 Nov: `CRON_SECRET` added to Vercel Production and migrations 0001 + 0002 applied to the production Neon
+  database (twelve new tables, existing rows untouched). Remaining: merge the PR, press the first scan in
+  `/admin/market/runs`, and fix the AI connection (gateway 403 until a card is on the Vercel team, or set
+  `ANTHROPIC_API_KEY`).
 
 ## Commands
 | Task | Command | Notes |
@@ -56,9 +58,13 @@ Local Postgres in a cloud session: `service postgresql start`, then create a `da
 - Migrations are generated (`pnpm db:generate`) and applied by hand (`pnpm db:migrate`); Vercel does not run them.
 
 ## Gotchas
-- In cloud sessions the permission layer refuses `vercel env add` (secret-store write) and `vercel env pull`
-  (reads the production database URL). Plan for the owner to add env vars and run `pnpm db:migrate` against
-  production; do not route around it, for example by migrating inside the Vercel build.
+- `vercel env add` and `vercel env pull` may be refused by the permission layer in cloud sessions; on 25 Nov
+  they were allowed once the owner asked for them explicitly. Pull into the scratchpad, never the repo, and
+  delete the file afterwards. Values marked Sensitive are not pullable at all.
+- Cloud sessions cannot open TCP port 5432, so `pnpm db:migrate` (postgres.js) cannot reach Neon. Apply
+  migrations over HTTPS instead: install `@neondatabase/serverless` plus the repo's `drizzle-orm` version in a
+  scratchpad folder and run `migrate` from `drizzle-orm/neon-http/migrator` with `migrationsFolder` pointing at
+  the repo's `drizzle/`. It records into the same `drizzle.__drizzle_migrations` table drizzle-kit uses.
 - Playwright's "Desktop Chrome" device has a normal browser user agent, so e2e visits are counted as traffic in
   the dev database; plain headless Chromium is treated as a bot and is not.
 - A layout's auth check is not enough in this Next.js version: a request can ask for the page segment alone and
