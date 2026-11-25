@@ -5,7 +5,16 @@
 - **Language / framework:** TypeScript, Next.js 16 App Router, React 19, Tailwind 4 + shadcn/ui (RTL), Drizzle ORM
   on Neon Postgres, Better Auth, Vitest, Playwright. Deployed on Vercel (project `dafsha`, Hobby plan).
 - **Default branch:** `main`
-- **Last onboarded:** 2026-11-10
+- **Last onboarded:** 2026-11-10 (status checked 2026-11-25)
+
+## Status (2026-11-25)
+- Market Pulse is complete on branch `claude/trusting-hopper-x4ljjn` (22 commits, 10 Nov) and proposed as
+  [nassarMa/dafsha-site#6](https://github.com/nassarMa/dafsha-site/pull/6). Not merged; production still runs
+  `main` from 4 Nov (founders section), so `/market` is not live.
+- On 25 Nov the branch passed typecheck, lint, 257 unit tests, 55 integration tests and `pnpm build` against a
+  local Postgres with the migration applied.
+- Blockers for launch are the owner's: apply `drizzle/0001_market_pulse.sql` to production, add `CRON_SECRET`
+  in Vercel, and fix the AI connection (gateway 403 until a card is on the Vercel team, or set `ANTHROPIC_API_KEY`).
 
 ## Commands
 | Task | Command | Notes |
