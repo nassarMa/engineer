@@ -58,6 +58,10 @@ Local Postgres in a cloud session: `service postgresql start`, then create a `da
 - Migrations are generated (`pnpm db:generate`) and applied by hand (`pnpm db:migrate`); Vercel does not run them.
 
 ## Gotchas
+- Production must only ever be deployed from `main`. On 25 Nov a founder card was deployed to production
+  straight from its feature branch without merging; the next deployment from `main` (a day later) silently
+  dropped it (restored by dafsha-site#7). Before merging anything, check `git log origin/main..origin/<branch>`
+  for every branch that Vercel lists with a production deployment.
 - `vercel env add` and `vercel env pull` may be refused by the permission layer in cloud sessions; on 25 Nov
   they were allowed once the owner asked for them explicitly. Pull into the scratchpad, never the repo, and
   delete the file afterwards. Values marked Sensitive are not pullable at all.
